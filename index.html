@@ -356,6 +356,53 @@
         display: block;
       }
 
+      #debugPerfBtn {
+        display: none;
+        width: 100%;
+        appearance: none;
+        margin-top: 8px;
+        padding: 10px 8px;
+        border: 2px solid #39ff9f;
+        background: rgba(10, 4, 30, 0.88);
+        color: #39ff9f;
+        font-size: 11px;
+        letter-spacing: 1px;
+        cursor: pointer;
+      }
+
+      #debugPerfBtn.show {
+        display: block;
+      }
+
+      #debugPerfBtn:disabled {
+        opacity: 0.5;
+        cursor: wait;
+      }
+
+      #debugPerfReport {
+        display: none;
+        position: fixed;
+        left: 12px;
+        bottom: 48px;
+        z-index: 21;
+        max-width: min(420px, 92vw);
+        max-height: 45vh;
+        overflow: auto;
+        padding: 10px 12px;
+        border: 1px solid #39ff9f;
+        background: rgba(5, 1, 20, 0.92);
+        color: #b8fff0;
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        pointer-events: auto;
+        user-select: text;
+      }
+
+      #debugPerfReport.show {
+        display: block;
+      }
+
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="tracks/neon-circuit-1.js"></script>
@@ -385,8 +432,10 @@
 
       <div class="menu-play-wrap hit">
         <button type="button" class="play-btn" id="btnStartRace">JOGAR</button>
+        <button type="button" id="debugPerfBtn">Teste FPS (diagnóstico)</button>
       </div>
     </div>
+    <div id="debugPerfReport"></div>
     <div id="hud">
       <h1>NEON RUSH</h1>
       <p>↑ acelerar · ↓ frear · ← → virar</p>
@@ -419,14 +468,20 @@
       const countdownNumber = document.getElementById("countdownNumber");
       const moneyLabel = document.getElementById("moneyLabel");
       const debugFps = document.getElementById("debugFps");
+      const debugPerfBtn = document.getElementById("debugPerfBtn");
+      const debugPerfReport = document.getElementById("debugPerfReport");
       const engine = new BABYLON.Engine(canvas, true);
 
       const debugEnabled =
         new URLSearchParams(window.location.search).get("debug") === "true";
       if (debugEnabled) {
         debugFps.classList.add("show");
+        debugPerfBtn.classList.add("show");
       }
       let debugFpsFrame = 0;
+      let perfTestRunning = false;
+      // Preenchido dentro de createScene (raízes para ligar/desligar no teste)
+      let perfSceneApi = null;
 
       // Economia: começa em 0; 1º=+11, 2º=+7, 3º=+0
       const COIN_REWARDS = { 1: 11, 2: 7, 3: 0 };
@@ -1028,36 +1083,46 @@
           themeRoad[2]
         );
 
+        const roadPieces = [];
+        const buildingGroups = [];
+        let finishGate = null;
+
         const step = 7;
         let pieceIndex = 0;
         for (let d = 0; d < trackLength; d += step) {
-          createRoadPiece(
-            scene,
-            samplePath(path3D, d),
-            roadMat,
-            edgeMat,
-            pieceIndex++
+          roadPieces.push(
+            createRoadPiece(
+              scene,
+              samplePath(path3D, d),
+              roadMat,
+              edgeMat,
+              pieceIndex++
+            )
           );
         }
 
         const finishSample = samplePath(path3D, track.finishDist);
-        createFinishLine(scene, finishSample);
+        finishGate = createFinishLine(scene, finishSample);
 
         let buildingId = 0;
         for (let d = 10; d < trackLength; d += 14) {
           const sample = samplePath(path3D, d);
           const side = sample.binormal;
-          createBuilding(
-            scene,
-            sample.position.add(side.scale(-(12 + Math.random() * 8))),
-            neonColors,
-            buildingId++
+          buildingGroups.push(
+            createBuilding(
+              scene,
+              sample.position.add(side.scale(-(12 + Math.random() * 8))),
+              neonColors,
+              buildingId++
+            )
           );
-          createBuilding(
-            scene,
-            sample.position.add(side.scale(12 + Math.random() * 8)),
-            neonColors,
-            buildingId++
+          buildingGroups.push(
+            createBuilding(
+              scene,
+              sample.position.add(side.scale(12 + Math.random() * 8)),
+              neonColors,
+              buildingId++
+            )
           );
         }
 
@@ -1510,17 +1575,148 @@
           }
         }
 
+        function setNodesEnabled(nodes, enabled) {
+          nodes.forEach(function (node) {
+            node.setEnabled(enabled);
+          });
+        }
+
+        function setBuildingWindowsEnabled(enabled) {
+          buildingGroups.forEach(function (group) {
+            group.getChildren().forEach(function (child) {
+              if (child.name && child.name.indexOf("win_") === 0) {
+                child.setEnabled(enabled);
+              }
+            });
+          });
+        }
+
+        function restorePerfScene() {
+          setNodesEnabled(roadPieces, true);
+          setNodesEnabled(buildingGroups, true);
+          setBuildingWindowsEnabled(true);
+          if (finishGate) finishGate.setEnabled(true);
+          player.mesh.setEnabled(true);
+          rivalA.mesh.setEnabled(false);
+          rivalB.mesh.setEnabled(false);
+          scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+          scene.fogDensity = 0.012;
+        }
+
+        function countActiveMeshes() {
+          return scene.meshes.filter(function (mesh) {
+            return mesh.isEnabled() && mesh.isVisible;
+          }).length;
+        }
+
+        function waitMs(ms) {
+          return new Promise(function (resolve) {
+            setTimeout(resolve, ms);
+          });
+        }
+
+        async function sampleFpsAverage(durationMs) {
+          const samples = [];
+          const endAt = performance.now() + durationMs;
+          while (performance.now() < endAt) {
+            samples.push(engine.getFps());
+            await waitMs(50);
+          }
+          const sum = samples.reduce(function (a, b) {
+            return a + b;
+          }, 0);
+          return {
+            avg: sum / samples.length,
+            min: Math.min.apply(null, samples),
+            max: Math.max.apply(null, samples),
+            samples: samples.length,
+          };
+        }
+
+        // Diagnóstico de FPS (não otimiza — só mede e isola)
+        perfSceneApi = {
+          runDiagnostic: async function (onProgress) {
+            const results = [];
+            const sampleMs = 2000;
+
+            async function measure(label, setupFn) {
+              restorePerfScene();
+              setupFn();
+              await waitMs(400);
+              if (onProgress) {
+                onProgress("Medindo: " + label + " ...");
+              }
+              const stats = await sampleFpsAverage(sampleMs);
+              const row = {
+                label: label,
+                avg: stats.avg,
+                min: stats.min,
+                max: stats.max,
+                meshes: countActiveMeshes(),
+              };
+              results.push(row);
+              console.log(
+                "[FPS TEST]",
+                label,
+                "| avg",
+                stats.avg.toFixed(1),
+                "| min",
+                stats.min.toFixed(1),
+                "| max",
+                stats.max.toFixed(1),
+                "| meshes",
+                row.meshes
+              );
+              if (onProgress) {
+                onProgress(results.slice());
+              }
+            }
+
+            await measure("1) Baseline (hub como está)", function () {});
+            await measure("2) Sem prédios", function () {
+              setNodesEnabled(buildingGroups, false);
+            });
+            await measure("3) Prédios sem janelas/portas", function () {
+              setBuildingWindowsEnabled(false);
+            });
+            await measure("4) Sem pedaços da pista", function () {
+              setNodesEnabled(roadPieces, false);
+            });
+            await measure("5) Sem linha de chegada", function () {
+              if (finishGate) finishGate.setEnabled(false);
+            });
+            await measure("6) Sem neblina (fog)", function () {
+              scene.fogMode = BABYLON.Scene.FOGMODE_NONE;
+            });
+            await measure("7) Sem carro do jogador", function () {
+              player.mesh.setEnabled(false);
+            });
+            await measure("8) Quase vazio (só céu)", function () {
+              setNodesEnabled(roadPieces, false);
+              setNodesEnabled(buildingGroups, false);
+              if (finishGate) finishGate.setEnabled(false);
+              player.mesh.setEnabled(false);
+              scene.fogMode = BABYLON.Scene.FOGMODE_NONE;
+            });
+
+            restorePerfScene();
+            return results;
+          },
+        };
+
         scene.onBeforeRenderObservable.add(() => {
           const dt = engine.getDeltaTime() / 1000;
 
           // Hub: carro no centro girando + câmera orbitando
           if (inMenu) {
             GameAudio.stopEngines();
-            player.mesh.rotation.y += dt * 0.55;
-            menuCamera.alpha += dt * 0.22;
-            menuCamera.setTarget(
-              player.mesh.position.add(new BABYLON.Vector3(0, 0.6, 0))
-            );
+            if (!perfTestRunning) {
+              player.mesh.rotation.y += dt * 0.55;
+              menuCamera.alpha += dt * 0.22;
+              menuCamera.setTarget(
+                player.mesh.position.add(new BABYLON.Vector3(0, 0.6, 0))
+              );
+            }
             return;
           }
 
@@ -1602,6 +1798,78 @@
       };
 
       const scene = createScene();
+
+      function formatPerfResults(results) {
+        let text = "DIAGNÓSTICO FPS (sem otimizar)\n";
+        text += "Cada etapa ~2s no hub\n\n";
+        results.forEach(function (row) {
+          text +=
+            row.label +
+            "\n  avg " +
+            row.avg.toFixed(1) +
+            " | min " +
+            row.min.toFixed(1) +
+            " | max " +
+            row.max.toFixed(1) +
+            " | meshes " +
+            row.meshes +
+            "\n\n";
+        });
+        if (results.length >= 2) {
+          const base = results[0].avg;
+          text += "Comparação com o baseline:\n";
+          results.slice(1).forEach(function (row) {
+            const delta = row.avg - base;
+            const sign = delta >= 0 ? "+" : "";
+            text +=
+              "  " +
+              row.label +
+              " → " +
+              sign +
+              delta.toFixed(1) +
+              " FPS\n";
+          });
+        }
+        return text;
+      }
+
+      async function runFpsDiagnostic() {
+        if (!debugEnabled || !perfSceneApi || perfTestRunning) return;
+        perfTestRunning = true;
+        debugPerfBtn.disabled = true;
+        btnStartRace.disabled = true;
+        debugPerfReport.classList.add("show");
+        debugPerfReport.textContent =
+          "Iniciando diagnóstico...\nOlhe o console (F12) também.";
+
+        try {
+          const results = await perfSceneApi.runDiagnostic(function (msg) {
+            if (typeof msg === "string") {
+              debugPerfReport.textContent = msg;
+            } else {
+              debugPerfReport.textContent = formatPerfResults(msg);
+            }
+          });
+          const finalText = formatPerfResults(results);
+          debugPerfReport.textContent =
+            finalText + "\nConcluído. Nada foi otimizado — só medição.";
+          console.log("[FPS TEST] Relatório final\n" + finalText);
+        } catch (err) {
+          console.error("[FPS TEST] Erro", err);
+          debugPerfReport.textContent =
+            "Erro no diagnóstico. Veja o console.\n" + String(err);
+        } finally {
+          perfTestRunning = false;
+          debugPerfBtn.disabled = false;
+          btnStartRace.disabled = false;
+        }
+      }
+
+      if (debugEnabled) {
+        debugPerfBtn.addEventListener("click", function () {
+          runFpsDiagnostic();
+        });
+      }
 
       engine.runRenderLoop(function () {
         scene.render();
