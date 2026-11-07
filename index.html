@@ -119,13 +119,54 @@
         opacity: 0.85;
       }
 
-      .multiplier-badge {
+      .menu-stats {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 10px 8px;
+        border: 2px solid rgba(0, 229, 255, 0.55);
+        background: rgba(10, 4, 30, 0.82);
+        box-shadow: 0 0 14px rgba(0, 229, 255, 0.18);
+        color: #b8f3ff;
+      }
+
+      .menu-stat {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .menu-stat span {
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        opacity: 0.85;
+      }
+
+      .menu-stat strong {
+        font-size: 14px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        color: #fff;
+        text-shadow: 0 0 8px rgba(0, 229, 255, 0.45);
+      }
+
+      .boost-badge {
         margin-top: 2px;
         font-size: 9px !important;
         letter-spacing: 0.5px !important;
+        opacity: 1 !important;
+      }
+
+      .boost-badge.mult {
         color: #39ff9f;
         text-shadow: 0 0 8px rgba(57, 255, 159, 0.55);
-        opacity: 1 !important;
+      }
+
+      .boost-badge.tire {
+        color: #7ec8ff;
+        text-shadow: 0 0 8px rgba(126, 200, 255, 0.55);
       }
 
       .rail-btn {
@@ -674,7 +715,18 @@
         <div class="menu-money" title="Moedas">
           <span>MOEDAS</span>
           <strong id="moneyLabel">0</strong>
-          <span id="multiplierBadge" class="multiplier-badge" hidden>×3 próxima</span>
+          <span id="multiplierBadge" class="boost-badge mult" hidden>×3 próxima</span>
+          <span id="tireBadge" class="boost-badge tire" hidden>Pneu 70</span>
+        </div>
+        <div class="menu-stats" aria-label="Conta">
+          <div class="menu-stat" title="Carros desbloqueados">
+            <span>CARROS</span>
+            <strong id="carsCollectionLabel">1/1</strong>
+          </div>
+          <div class="menu-stat" title="Vitórias em 1º lugar">
+            <span>VITÓRIAS</span>
+            <strong id="winsLabel">0</strong>
+          </div>
         </div>
         <button type="button" class="rail-btn" id="btnShop" title="Comprar carros">
           <span class="icon">▣</span>
@@ -780,6 +832,10 @@
       const COIN_MULTIPLIER_KEY = "neonRush.coinMultiplierNext";
       const COIN_MULTIPLIER_PRICE = 11;
       const COIN_MULTIPLIER_VALUE = 3;
+      const CALIBRATED_TIRE_KEY = "neonRush.calibratedTireNext";
+      const CALIBRATED_TIRE_PRICE_MIN = 30;
+      const CALIBRATED_TIRE_PRICE_MAX = 50;
+      const CALIBRATED_TIRE_MAX_SPEED = 70;
 
       function loadCoins() {
         const saved = localStorage.getItem(COINS_STORAGE_KEY);
@@ -815,13 +871,33 @@
         savePendingCoinMultiplier(COIN_MULTIPLIER_VALUE);
       }
 
+      function hasPendingCalibratedTire() {
+        return localStorage.getItem(CALIBRATED_TIRE_KEY) === "1";
+      }
+
+      function activateCalibratedTire() {
+        localStorage.setItem(CALIBRATED_TIRE_KEY, "1");
+      }
+
+      function consumeCalibratedTire() {
+        localStorage.removeItem(CALIBRATED_TIRE_KEY);
+      }
+
+      function rollPriceBetween(min, max) {
+        return min + Math.floor(Math.random() * (max - min + 1));
+      }
+
       let coins = loadCoins();
 
       function refreshMoneyLabel() {
         moneyLabel.textContent = String(coins);
-        const badge = document.getElementById("multiplierBadge");
-        if (badge) {
-          badge.hidden = !hasPendingCoinMultiplier();
+        const multBadge = document.getElementById("multiplierBadge");
+        if (multBadge) {
+          multBadge.hidden = !hasPendingCoinMultiplier();
+        }
+        const tireBadge = document.getElementById("tireBadge");
+        if (tireBadge) {
+          tireBadge.hidden = !hasPendingCalibratedTire();
         }
       }
 
@@ -842,7 +918,7 @@
 
       refreshMoneyLabel();
 
-      // Física IGUAL para jogador e rivais (sem vantagem)
+      // Física base; itens da loja podem buffar só o jogador na próxima corrida
       const PHYSICS = {
         maxSpeed: 55,
         accel: 28,
@@ -851,6 +927,10 @@
         turnRate: 1.2,
         laneLimit: 5.5,
       };
+
+      function getRacerMaxSpeed(racer) {
+        return racer.maxSpeed != null ? racer.maxSpeed : PHYSICS.maxSpeed;
+      }
 
       const keys = {
         up: false,
@@ -914,6 +994,7 @@
         if (purchased.indexOf(carId) === -1) {
           purchased.push(carId);
           savePurchasedCars(purchased);
+          refreshAccountStats();
         }
       }
 
@@ -942,6 +1023,45 @@
         localStorage.removeItem("neonRush.ownedCars");
         return owned;
       }
+
+      const WINS_STORAGE_KEY = "neonRush.wins";
+
+      function getTotalCarsCount() {
+        return Object.keys(window.NEON_RUSH_CARS || {}).length;
+      }
+
+      function loadWins() {
+        const saved = parseInt(localStorage.getItem(WINS_STORAGE_KEY) || "0", 10);
+        return Number.isFinite(saved) && saved >= 0 ? saved : 0;
+      }
+
+      function saveWins(amount) {
+        localStorage.setItem(WINS_STORAGE_KEY, String(amount));
+      }
+
+      let wins = loadWins();
+
+      function refreshAccountStats() {
+        const carsLabel = document.getElementById("carsCollectionLabel");
+        const winsLabel = document.getElementById("winsLabel");
+        if (carsLabel) {
+          carsLabel.textContent =
+            loadOwnedCars().length + "/" + getTotalCarsCount();
+        }
+        if (winsLabel) {
+          winsLabel.textContent = String(wins);
+        }
+      }
+
+      function registerWinIfFirst(place) {
+        if (place !== 1) return false;
+        wins += 1;
+        saveWins(wins);
+        refreshAccountStats();
+        return true;
+      }
+
+      refreshAccountStats();
 
       function loadEquippedCarId() {
         const owned = loadOwnedCars();
@@ -2146,6 +2266,138 @@
         return car;
       }
 
+      function createTropicalCar(scene, id, bodyColor, accentColor) {
+        // Épico: formato normal, pintura de ondas, conchas no lugar dos faróis
+        const car = createStarterCar(scene, id, bodyColor, accentColor);
+
+        // Remove faróis padrão
+        car.getChildMeshes(false).forEach(function (mesh) {
+          if (
+            mesh.name === "headL_" + id ||
+            mesh.name === "headR_" + id
+          ) {
+            mesh.dispose();
+          }
+        });
+
+        const waveDeep = makeNeonMaterial(
+          "waveDeep_" + id,
+          scene,
+          new BABYLON.Color3(0.05, 0.45, 0.75),
+          0.55
+        );
+        const waveFoam = makeNeonMaterial(
+          "waveFoam_" + id,
+          scene,
+          new BABYLON.Color3(0.75, 0.95, 1),
+          0.7
+        );
+        const sandMat = makeNeonMaterial(
+          "sandMat_" + id,
+          scene,
+          accentColor,
+          0.65
+        );
+        const shellMat = new BABYLON.StandardMaterial("shellMat_" + id, scene);
+        shellMat.diffuseColor = new BABYLON.Color3(0.95, 0.82, 0.65);
+        shellMat.emissiveColor = accentColor.scale(0.35);
+        shellMat.specularColor = new BABYLON.Color3(0.7, 0.6, 0.45);
+
+        const shellPink = new BABYLON.StandardMaterial(
+          "shellPink_" + id,
+          scene
+        );
+        shellPink.diffuseColor = new BABYLON.Color3(0.95, 0.55, 0.55);
+        shellPink.emissiveColor = new BABYLON.Color3(0.35, 0.12, 0.12);
+
+        // Ondas laterais (faixas onduladas em degraus)
+        function addWaveStripe(side, zBase, y, depth, mat) {
+          const stripe = BABYLON.MeshBuilder.CreateBox(
+            "wave_" + side + "_" + zBase + "_" + id,
+            { width: 0.06, height: 0.14, depth: depth },
+            scene
+          );
+          stripe.position.set(side * 0.92, y, zBase);
+          stripe.material = mat;
+          stripe.parent = car;
+        }
+
+        // Lado esquerdo — ondas
+        addWaveStripe(-1, 0.85, 0.58, 0.55, waveDeep);
+        addWaveStripe(-1, 0.35, 0.64, 0.5, waveFoam);
+        addWaveStripe(-1, -0.15, 0.56, 0.55, waveDeep);
+        addWaveStripe(-1, -0.65, 0.62, 0.45, waveFoam);
+        addWaveStripe(-1, -1.1, 0.55, 0.4, waveDeep);
+
+        // Lado direito — ondas
+        addWaveStripe(1, 0.85, 0.58, 0.55, waveDeep);
+        addWaveStripe(1, 0.35, 0.64, 0.5, waveFoam);
+        addWaveStripe(1, -0.15, 0.56, 0.55, waveDeep);
+        addWaveStripe(1, -0.65, 0.62, 0.45, waveFoam);
+        addWaveStripe(1, -1.1, 0.55, 0.4, waveDeep);
+
+        // Faixa de areia no capô
+        const hoodSand = BABYLON.MeshBuilder.CreateBox(
+          "hoodSand_" + id,
+          { width: 1.35, height: 0.04, depth: 0.75 },
+          scene
+        );
+        hoodSand.position.set(0, 0.78, 1.15);
+        hoodSand.material = sandMat;
+        hoodSand.parent = car;
+
+        // Onda no teto / faixa superior
+        const roofWave = BABYLON.MeshBuilder.CreateBox(
+          "roofWave_" + id,
+          { width: 0.35, height: 0.05, depth: 1.3 },
+          scene
+        );
+        roofWave.position.set(0, 1.22, -0.15);
+        roofWave.material = waveFoam;
+        roofWave.parent = car;
+
+        function addShellHeadlight(name, x) {
+          // Concha: esfera achatada + “abertura”
+          const shell = BABYLON.MeshBuilder.CreateSphere(
+            name,
+            { diameter: 0.32, segments: 12 },
+            scene
+          );
+          shell.scaling.set(1.15, 0.75, 0.55);
+          shell.position.set(x, 0.5, 1.78);
+          shell.material = shellMat;
+          shell.parent = car;
+
+          const opening = BABYLON.MeshBuilder.CreateSphere(
+            name + "_open",
+            { diameter: 0.18, segments: 10 },
+            scene
+          );
+          opening.scaling.set(1.1, 0.7, 0.35);
+          opening.position.set(x, 0.5, 1.88);
+          opening.material = shellPink;
+          opening.parent = car;
+
+          // Ridges da concha
+          for (let i = -1; i <= 1; i++) {
+            const ridge = BABYLON.MeshBuilder.CreateBox(
+              name + "_ridge_" + i,
+              { width: 0.03, height: 0.16, depth: 0.2 },
+              scene
+            );
+            ridge.position.set(x + i * 0.07, 0.52, 1.8);
+            ridge.rotation.z = i * 0.25;
+            ridge.material = sandMat;
+            ridge.parent = car;
+          }
+        }
+
+        addShellHeadlight("shellL_" + id, -0.55);
+        addShellHeadlight("shellR_" + id, 0.55);
+
+        return car;
+      }
+
       function createCarByModel(scene, modelId, instanceId, bodyColor, accentColor) {
         if (modelId === "turbocharger") {
           return createTurbochargerCar(
@@ -2169,6 +2421,9 @@
         }
         if (modelId === "flyght") {
           return createFlyghtCar(scene, instanceId, bodyColor, accentColor);
+        }
+        if (modelId === "tropical") {
+          return createTropicalCar(scene, instanceId, bodyColor, accentColor);
         }
         return createStarterCar(scene, instanceId, bodyColor, accentColor);
       }
@@ -2838,11 +3093,43 @@
           if (restoreCar) refreshEquippedCarLabel();
         }
 
-        // —— Loja: 5 ofertas por abertura; comprar troca por outra aleatória ——
+        // —— Loja: 5 ofertas; itens preenchem quando faltam carros ——
         const SHOP_OFFER_COUNT = 5;
-        let shopOffers = []; // { kind: 'car'|'multiplier', carId?, price }
+        let shopOffers = []; // car | item
         let shopIndex = 0;
         let shopPreviewId = null;
+
+        const SHOP_FILLER_ITEMS = {
+          multiplier: {
+            id: "multiplier",
+            name: "Multiplicador ×3",
+            color: "#39ff9f",
+            blurb: "Próxima corrida: moedas ×3",
+            rollPrice: function () {
+              return COIN_MULTIPLIER_PRICE;
+            },
+            canOffer: function () {
+              return !hasPendingCoinMultiplier();
+            },
+            activate: activateCoinMultiplier,
+          },
+          "calibrated-tire": {
+            id: "calibrated-tire",
+            name: "Pneu calibrado",
+            color: "#7ec8ff",
+            blurb: "Próxima corrida: vel. máx. 70",
+            rollPrice: function () {
+              return rollPriceBetween(
+                CALIBRATED_TIRE_PRICE_MIN,
+                CALIBRATED_TIRE_PRICE_MAX
+              );
+            },
+            canOffer: function () {
+              return !hasPendingCalibratedTire();
+            },
+            activate: activateCalibratedTire,
+          },
+        };
 
         function getUnownedCarIds(excludeIds) {
           const owned = loadOwnedCars();
@@ -2862,23 +3149,33 @@
           };
         }
 
-        function makeMultiplierOffer() {
+        function makeItemOffer(itemId) {
+          const item = SHOP_FILLER_ITEMS[itemId];
           return {
-            kind: "multiplier",
-            price: COIN_MULTIPLIER_PRICE,
+            kind: "item",
+            itemId: itemId,
+            price: item.rollPrice(),
           };
         }
 
-        function canOfferMultiplier() {
-          return !hasPendingCoinMultiplier();
+        function getOfferableFillerIds() {
+          return Object.keys(SHOP_FILLER_ITEMS).filter(function (id) {
+            return SHOP_FILLER_ITEMS[id].canOffer();
+          });
         }
 
-        function padShopOffersWithMultipliers() {
-          while (
-            shopOffers.length < SHOP_OFFER_COUNT &&
-            canOfferMultiplier()
-          ) {
-            shopOffers.push(makeMultiplierOffer());
+        function pickRandomFillerOffer() {
+          const ids = getOfferableFillerIds();
+          if (!ids.length) return null;
+          const itemId = ids[Math.floor(Math.random() * ids.length)];
+          return makeItemOffer(itemId);
+        }
+
+        function padShopOffersWithItems() {
+          while (shopOffers.length < SHOP_OFFER_COUNT) {
+            const offer = pickRandomFillerOffer();
+            if (!offer) break;
+            shopOffers.push(offer);
           }
         }
 
@@ -2886,7 +3183,7 @@
           const pool = shuffleArray(getUnownedCarIds());
           const picked = pool.slice(0, SHOP_OFFER_COUNT);
           shopOffers = picked.map(makeCarOffer);
-          padShopOffersWithMultipliers();
+          padShopOffersWithItems();
           shopIndex = 0;
         }
 
@@ -2900,17 +3197,20 @@
             });
           const pool = shuffleArray(getUnownedCarIds(inOffers));
           if (pool.length) return makeCarOffer(pool[0]);
-          if (canOfferMultiplier()) return makeMultiplierOffer();
-          return null;
+          return pickRandomFillerOffer();
         }
 
-        function stripMultiplierOffers() {
+        function stripItemOffersOfType(itemId) {
           shopOffers = shopOffers.filter(function (o) {
-            return o.kind !== "multiplier";
+            return !(o.kind === "item" && o.itemId === itemId);
           });
           if (shopIndex >= shopOffers.length) {
             shopIndex = Math.max(0, shopOffers.length - 1);
           }
+        }
+
+        function isItemOffer(offer) {
+          return offer && offer.kind === "item";
         }
 
         function updateShopHud() {
@@ -2933,9 +3233,10 @@
             priceEl.classList.remove("cant-afford");
             indexEl.textContent = "";
             emptyEl.hidden = false;
-            emptyEl.textContent = hasPendingCoinMultiplier()
-              ? "Sem ofertas — use o ×3 na próxima corrida!"
-              : "Sem ofertas agora — você já tem todos!";
+            emptyEl.textContent =
+              hasPendingCoinMultiplier() || hasPendingCalibratedTire()
+                ? "Sem ofertas — use seus itens na próxima corrida!"
+                : "Sem ofertas agora — você já tem todos!";
             buyBtn.disabled = true;
             buyBtn.textContent = "Comprar";
             prevBtn.style.visibility = "hidden";
@@ -2950,10 +3251,11 @@
           const offer = shopOffers[shopIndex];
           const canAfford = coins >= offer.price;
 
-          if (offer.kind === "multiplier") {
-            nameEl.textContent = "Multiplicador ×3";
-            rarityEl.textContent = "Item";
-            rarityEl.style.color = "#39ff9f";
+          if (isItemOffer(offer)) {
+            const item = SHOP_FILLER_ITEMS[offer.itemId];
+            nameEl.textContent = item.name;
+            rarityEl.textContent = item.blurb;
+            rarityEl.style.color = item.color;
           } else {
             const def = getCarDef(offer.carId);
             const rarity =
@@ -3000,7 +3302,7 @@
             shopOffers.length;
           const offer = shopOffers[shopIndex];
 
-          if (offer.kind === "multiplier") {
+          if (isItemOffer(offer)) {
             shopPreviewId = null;
             if (player.carModelId !== equippedCarId) {
               rebuildPlayerCar(equippedCarId, { saveEquip: true });
@@ -3026,11 +3328,12 @@
           if (!offer) return;
           if (coins < offer.price) return;
 
-          if (offer.kind === "multiplier") {
-            if (hasPendingCoinMultiplier()) return;
+          if (isItemOffer(offer)) {
+            const item = SHOP_FILLER_ITEMS[offer.itemId];
+            if (!item || !item.canOffer()) return;
             coins -= offer.price;
             saveCoins(coins);
-            activateCoinMultiplier();
+            item.activate();
             refreshMoneyLabel();
           } else {
             if (loadOwnedCars().indexOf(offer.carId) !== -1) return;
@@ -3039,6 +3342,8 @@
             refreshMoneyLabel();
             purchaseCar(offer.carId);
           }
+
+          const boughtItemId = isItemOffer(offer) ? offer.itemId : null;
 
           const replacement = pickReplacementOffer();
           if (replacement) {
@@ -3050,9 +3355,9 @@
             }
           }
 
-          // ×3 ativo: some com outros multiplicadores da vitrine
-          if (hasPendingCoinMultiplier()) {
-            stripMultiplierOffers();
+          // Item ativado: remove cópias iguais da vitrine
+          if (boughtItemId) {
+            stripItemOffersOfType(boughtItemId);
           }
 
           showShopOfferAt(shopIndex);
@@ -3201,6 +3506,7 @@
           countdownActive = false;
           goDisplayTimer = 0;
           GameAudio.stopEngines();
+          player.maxSpeed = PHYSICS.maxSpeed;
           finishOrder.length = 0;
           rankingPanel.classList.remove("show");
           rankingHint.classList.remove("show");
@@ -3211,6 +3517,7 @@
           progressLabel.textContent = "Progresso: 0%";
           placeLabel.textContent = "Posição: 1º / 3";
           speedLabel.textContent = "Velocidade: 0";
+          refreshAccountStats();
           enterMenuCamera();
         }
 
@@ -3232,6 +3539,17 @@
           if (player.carModelId !== equippedCarId) {
             rebuildPlayerCar(equippedCarId, { saveEquip: true });
           }
+          // Pneu calibrado: só o jogador, só nesta corrida
+          if (hasPendingCalibratedTire()) {
+            player.maxSpeed = CALIBRATED_TIRE_MAX_SPEED;
+            consumeCalibratedTire();
+            refreshMoneyLabel();
+          } else {
+            player.maxSpeed = PHYSICS.maxSpeed;
+          }
+          rivalA.maxSpeed = PHYSICS.maxSpeed;
+          rivalB.maxSpeed = PHYSICS.maxSpeed;
+
           inMenu = false;
           raceTime = 0;
           raceOver = false;
@@ -3418,7 +3736,8 @@
             if (Math.abs(racer.speed) < 0.2) racer.speed = 0;
           }
 
-          racer.speed = Math.max(-12, Math.min(PHYSICS.maxSpeed, racer.speed));
+          const speedCap = getRacerMaxSpeed(racer);
+          racer.speed = Math.max(-12, Math.min(speedCap, racer.speed));
 
           const steerPower = Math.min(1, Math.abs(racer.speed) / 10);
           if (input.left) racer.mesh.rotation.y -= PHYSICS.turnRate * steerPower * dt;
@@ -3544,21 +3863,27 @@
           if (allRacersFinished() && !raceOver) {
             raceOver = true;
             const finalPlace = getPlayerPlace();
+            const didWin = registerWinIfFirst(finalPlace);
             const reward = rewardCoinsForPlace(finalPlace);
             progressLabel.textContent = "Progresso: 100%";
             placeLabel.textContent =
               "Posição: " + placeText(finalPlace) + " / 3";
+            let hint = "";
+            if (didWin) {
+              hint = "Vitória! ";
+            }
             if (reward.gained > 0) {
-              rankingHint.textContent =
+              hint +=
                 "+" +
                 reward.gained +
                 " moedas" +
                 (reward.multiplier > 1 ? " (×" + reward.multiplier + ")" : "") +
-                "! Pressione R para voltar ao menu";
-            } else {
-              rankingHint.textContent =
-                "Sem moedas desta vez. Pressione R para voltar ao menu";
+                "! ";
+            } else if (!didWin) {
+              hint = "Sem moedas desta vez. ";
             }
+            rankingHint.textContent =
+              hint + "Pressione R para voltar ao menu";
             rankingHint.classList.add("show");
           }
         }
@@ -3743,17 +4068,21 @@
           applyDrive(rivalB, getAIInput(rivalB, dt), dt);
 
           // Motores dos 3 carros (rivais mais baixos quando longe)
-          GameAudio.setEngineSpeed("player", player.speed, PHYSICS.maxSpeed);
+          GameAudio.setEngineSpeed(
+            "player",
+            player.speed,
+            getRacerMaxSpeed(player)
+          );
           GameAudio.setEngineSpeed(
             "rivalA",
             rivalA.speed,
-            PHYSICS.maxSpeed,
+            getRacerMaxSpeed(rivalA),
             BABYLON.Vector3.Distance(player.mesh.position, rivalA.mesh.position)
           );
           GameAudio.setEngineSpeed(
             "rivalB",
             rivalB.speed,
-            PHYSICS.maxSpeed,
+            getRacerMaxSpeed(rivalB),
             BABYLON.Vector3.Distance(player.mesh.position, rivalB.mesh.position)
           );
 

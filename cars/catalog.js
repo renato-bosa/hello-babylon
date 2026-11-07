@@ -93,6 +93,15 @@
       accentColor: [1, 0.82, 0.2],
       ownedByDefault: false,
     },
+    tropical: {
+      id: "tropical",
+      name: "Tropical",
+      rarity: "epic",
+      model: "tropical",
+      bodyColor: [0.12, 0.78, 0.72],
+      accentColor: [1, 0.72, 0.35],
+      ownedByDefault: false,
+    },
   };
 
   /** Sorteia um preço justo dentro da faixa da raridade do carro */
