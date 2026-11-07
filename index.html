@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Neon Rush — Luigi</title>
+    <style>
+      html,
+      body {
+        overflow: hidden;
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background: #05010f;
+        font-family: "Segoe UI", Tahoma, sans-serif;
+      }
+
+      #renderCanvas {
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+        display: block;
+      }
+
+      #hud {
+        position: fixed;
+        left: 16px;
+        top: 16px;
+        color: #b8f3ff;
+        text-shadow: 0 0 8px #00e5ff;
+        pointer-events: none;
+        user-select: none;
+        z-index: 2;
+      }
+
+      #hud h1 {
+        margin: 0 0 6px;
+        font-size: 22px;
+        letter-spacing: 2px;
+        color: #ff4fd8;
+        text-shadow: 0 0 10px #ff4fd8;
+      }
+
+      #hud p {
+        margin: 0;
+        font-size: 14px;
+        opacity: 0.9;
+      }
+    </style>
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+  </head>
+  <body>
+    <div id="hud">
+      <h1>NEON RUSH</h1>
+      <p>↑ acelerar · ↓ frear · ← → dirigir</p>
+      <p id="speedLabel">Velocidade: 0</p>
+    </div>
+    <canvas id="renderCanvas"></canvas>
+    <script>
+      const canvas = document.getElementById("renderCanvas");
+      const speedLabel = document.getElementById("speedLabel");
+      const engine = new BABYLON.Engine(canvas, true);
+
+      // --- Controles ---
+      const keys = {
+        up: false,
+        down: false,
+        left: false,
+        right: false,
+      };
+
+      window.addEventListener("keydown", (e) => {
+        if (e.code === "ArrowUp" || e.code === "KeyW") keys.up = true;
+        if (e.code === "ArrowDown" || e.code === "KeyS") keys.down = true;
+        if (e.code === "ArrowLeft" || e.code === "KeyA") keys.left = true;
+        if (e.code === "ArrowRight" || e.code === "KeyD") keys.right = true;
+      });
+
+      window.addEventListener("keyup", (e) => {
+        if (e.code === "ArrowUp" || e.code === "KeyW") keys.up = false;
+        if (e.code === "ArrowDown" || e.code === "KeyS") keys.down = false;
+        if (e.code === "ArrowLeft" || e.code === "KeyA") keys.left = false;
+        if (e.code === "ArrowRight" || e.code === "KeyD") keys.right = false;
+      });
+
+      function makeNeonMaterial(name, scene, color, glow = 0.85) {
+        const mat = new BABYLON.StandardMaterial(name, scene);
+        mat.diffuseColor = color.scale(0.25);
+        mat.emissiveColor = color.scale(glow);
+        mat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.3);
+        return mat;
+      }
+
+      function createCar(scene) {
+        const car = new BABYLON.TransformNode("car", scene);
+
+        const bodyMat = makeNeonMaterial(
+          "bodyMat",
+          scene,
+          new BABYLON.Color3(0.15, 0.75, 1),
+          0.7
+        );
+        const accentMat = makeNeonMaterial(
+          "accentMat",
+          scene,
+          new BABYLON.Color3(1, 0.2, 0.85),
+          1
+        );
+        const darkMat = new BABYLON.StandardMaterial("darkMat", scene);
+        darkMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.1);
+        darkMat.emissiveColor = new BABYLON.Color3(0.02, 0.02, 0.05);
+
+        const body = BABYLON.MeshBuilder.CreateBox(
+          "body",
+          { width: 1.6, height: 0.45, depth: 3.2 },
+          scene
+        );
+        body.position.y = 0.45;
+        body.material = bodyMat;
+        body.parent = car;
+
+        const cabin = BABYLON.MeshBuilder.CreateBox(
+          "cabin",
+          { width: 1.2, height: 0.4, depth: 1.4 },
+          scene
+        );
+        cabin.position.set(0, 0.85, -0.2);
+        cabin.material = darkMat;
+        cabin.parent = car;
+
+        const stripe = BABYLON.MeshBuilder.CreateBox(
+          "stripe",
+          { width: 1.65, height: 0.08, depth: 3.25 },
+          scene
+        );
+        stripe.position.y = 0.7;
+        stripe.material = accentMat;
+        stripe.parent = car;
+
+        const nose = BABYLON.MeshBuilder.CreateBox(
+          "nose",
+          { width: 1.2, height: 0.2, depth: 0.8 },
+          scene
+        );
+        nose.position.set(0, 0.35, 1.7);
+        nose.material = accentMat;
+        nose.parent = car;
+
+        return car;
+      }
+
+      function createRoadSegment(scene, z, roadMat, edgeMat) {
+        const group = new BABYLON.TransformNode("roadSeg_" + z, scene);
+
+        const road = BABYLON.MeshBuilder.CreateGround(
+          "road_" + z,
+          { width: 14, height: 40 },
+          scene
+        );
+        road.position.set(0, 0, z);
+        road.material = roadMat;
+        road.parent = group;
+
+        const leftEdge = BABYLON.MeshBuilder.CreateBox(
+          "leftEdge_" + z,
+          { width: 0.25, height: 0.2, depth: 40 },
+          scene
+        );
+        leftEdge.position.set(-7, 0.1, z);
+        leftEdge.material = edgeMat;
+        leftEdge.parent = group;
+
+        const rightEdge = BABYLON.MeshBuilder.CreateBox(
+          "rightEdge_" + z,
+          { width: 0.25, height: 0.2, depth: 40 },
+          scene
+        );
+        rightEdge.position.set(7, 0.1, z);
+        rightEdge.material = edgeMat;
+        rightEdge.parent = group;
+
+        // Faixa central tracejada
+        for (let i = 0; i < 4; i++) {
+          const dash = BABYLON.MeshBuilder.CreateBox(
+            "dash_" + z + "_" + i,
+            { width: 0.2, height: 0.05, depth: 3 },
+            scene
+          );
+          dash.position.set(0, 0.03, z - 15 + i * 10);
+          dash.material = edgeMat;
+          dash.parent = group;
+        }
+
+        return group;
+      }
+
+      function createBuilding(scene, x, z, neonColors) {
+        const height = 6 + Math.random() * 18;
+        const width = 3 + Math.random() * 3;
+        const depth = 3 + Math.random() * 3;
+
+        const building = BABYLON.MeshBuilder.CreateBox(
+          "building_" + x + "_" + z,
+          { width, height, depth },
+          scene
+        );
+        building.position.set(x, height / 2, z);
+
+        const color = neonColors[Math.floor(Math.random() * neonColors.length)];
+        const mat = new BABYLON.StandardMaterial(
+          "buildMat_" + x + "_" + z,
+          scene
+        );
+        mat.diffuseColor = new BABYLON.Color3(0.02, 0.02, 0.06);
+        mat.emissiveColor = color.scale(0.35 + Math.random() * 0.35);
+        building.material = mat;
+
+        return building;
+      }
+
+      const createScene = function () {
+        const scene = new BABYLON.Scene(engine);
+        scene.clearColor = new BABYLON.Color4(0.02, 0.01, 0.08, 1);
+        scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
+        scene.fogDensity = 0.012;
+        scene.fogColor = new BABYLON.Color3(0.04, 0.02, 0.1);
+
+        // Luz fraca + ambiente neon
+        const hemi = new BABYLON.HemisphericLight(
+          "hemi",
+          new BABYLON.Vector3(0, 1, 0),
+          scene
+        );
+        hemi.intensity = 0.35;
+        hemi.groundColor = new BABYLON.Color3(0.05, 0.02, 0.1);
+
+        const neonColors = [
+          new BABYLON.Color3(1, 0.2, 0.85),
+          new BABYLON.Color3(0.2, 0.9, 1),
+          new BABYLON.Color3(0.5, 0.3, 1),
+          new BABYLON.Color3(1, 0.5, 0.2),
+        ];
+
+        const roadMat = new BABYLON.StandardMaterial("roadMat", scene);
+        roadMat.diffuseColor = new BABYLON.Color3(0.04, 0.04, 0.08);
+        roadMat.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.07);
+
+        const edgeMat = makeNeonMaterial(
+          "edgeMat",
+          scene,
+          new BABYLON.Color3(0.2, 0.95, 1),
+          1
+        );
+
+        // Carro do jogador
+        const car = createCar(scene);
+        car.position.set(0, 0, 0);
+
+        // Câmera estilo Mario Kart: atrás e de cima
+        const camera = new BABYLON.FollowCamera(
+          "marioKartCam",
+          new BABYLON.Vector3(0, 12, -16),
+          scene,
+          car
+        );
+        camera.radius = 14;
+        camera.heightOffset = 10;
+        camera.rotationOffset = 180;
+        camera.cameraAcceleration = 0.05;
+        camera.maxCameraSpeed = 20;
+        // Sem controle manual da câmera — só segue o carro
+        camera.inputs.clear();
+
+        // Pista em pedaços que se repetem (sensação de infinito)
+        const segmentLength = 40;
+        const segmentCount = 6;
+        const roadSegments = [];
+        for (let i = 0; i < segmentCount; i++) {
+          const z = i * segmentLength;
+          roadSegments.push(createRoadSegment(scene, z, roadMat, edgeMat));
+        }
+
+        // Prédios de fundo nas laterais
+        const buildings = [];
+        for (let i = 0; i < 40; i++) {
+          const z = i * 12;
+          buildings.push(createBuilding(scene, -14 - Math.random() * 8, z, neonColors));
+          buildings.push(createBuilding(scene, 14 + Math.random() * 8, z, neonColors));
+        }
+
+        // Estado do carro
+        const carState = {
+          speed: 0,
+          maxSpeed: 55,
+          accel: 28,
+          brake: 40,
+          friction: 10,
+          turnSpeed: 18,
+          laneLimit: 5.5,
+        };
+
+        scene.onBeforeRenderObservable.add(() => {
+          const dt = engine.getDeltaTime() / 1000;
+
+          // Aceleração / freio
+          if (keys.up) {
+            carState.speed += carState.accel * dt;
+          } else if (keys.down) {
+            carState.speed -= carState.brake * dt;
+          } else {
+            // desacelera sozinho um pouco
+            if (carState.speed > 0) {
+              carState.speed -= carState.friction * dt;
+            } else if (carState.speed < 0) {
+              carState.speed += carState.friction * dt;
+            }
+            if (Math.abs(carState.speed) < 0.2) carState.speed = 0;
+          }
+
+          carState.speed = Math.max(
+            -12,
+            Math.min(carState.maxSpeed, carState.speed)
+          );
+
+          // Direção (só vira bem quando está andando)
+          const steerPower = Math.min(1, Math.abs(carState.speed) / 12);
+          if (keys.left) car.position.x -= carState.turnSpeed * steerPower * dt;
+          if (keys.right) car.position.x += carState.turnSpeed * steerPower * dt;
+
+          // Limite da pista
+          car.position.x = Math.max(
+            -carState.laneLimit,
+            Math.min(carState.laneLimit, car.position.x)
+          );
+
+          // Inclinação leve ao virar (estilo arcade)
+          let targetRoll = 0;
+          if (keys.left) targetRoll = 0.18;
+          if (keys.right) targetRoll = -0.18;
+          car.rotation.z += (targetRoll - car.rotation.z) * Math.min(1, 8 * dt);
+
+          // Avança na pista
+          car.position.z += carState.speed * dt;
+
+          // Recicla pedaços da pista atrás do carro
+          for (const seg of roadSegments) {
+            const roadMesh = seg.getChildren()[0];
+            if (roadMesh.position.z + segmentLength / 2 < car.position.z - 20) {
+              const maxZ = Math.max(
+                ...roadSegments.map((s) => s.getChildren()[0].position.z)
+              );
+              const delta = maxZ + segmentLength - roadMesh.position.z;
+              for (const child of seg.getChildren()) {
+                child.position.z += delta;
+              }
+            }
+          }
+
+          // Recicla prédios atrás do carro
+          for (const building of buildings) {
+            if (building.position.z < car.position.z - 30) {
+              building.position.z += 480;
+            }
+          }
+
+          speedLabel.textContent =
+            "Velocidade: " + Math.round(Math.abs(carState.speed));
+        });
+
+        return scene;
+      };
+
+      const scene = createScene();
+
+      engine.runRenderLoop(function () {
+        scene.render();
+      });
+
+      window.addEventListener("resize", function () {
+        engine.resize();
+      });
+    </script>
+  </body>
+</html>
