@@ -84,6 +84,37 @@
         font-size: 16px;
         color: #b8f3ff;
       }
+
+      #countdownOverlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 4;
+        align-items: center;
+        justify-content: center;
+        pointer-events: none;
+        background: rgba(5, 1, 20, 0.35);
+      }
+
+      #countdownOverlay.show {
+        display: flex;
+      }
+
+      #countdownNumber {
+        font-size: 120px;
+        font-weight: 700;
+        letter-spacing: 8px;
+        color: #ff4fd8;
+        text-shadow: 0 0 28px #ff4fd8, 0 0 60px #00e5ff;
+        text-align: center;
+      }
+
+      #countdownNumber.ready {
+        font-size: 36px;
+        letter-spacing: 2px;
+        line-height: 1.4;
+        max-width: 80vw;
+      }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
   </head>
@@ -93,10 +124,15 @@
       <p>↑ acelerar · ↓ frear · ← → virar</p>
       <p id="speedLabel">Velocidade: 0</p>
       <p id="progressLabel">Progresso: 0%</p>
+      <p id="placeLabel">Posição: 1º / 3</p>
+    </div>
+    <div id="countdownOverlay">
+      <div id="countdownNumber">3</div>
     </div>
     <div id="finishOverlay">
       <div id="finishCard">
-        <h2>CHEGOU!</h2>
+        <h2 id="finishTitle">CHEGOU!</h2>
+        <p id="finishPlace">Você ficou em 1º</p>
         <p id="finishTime">Tempo: 0s</p>
         <p>Pressione R para correr de novo</p>
       </div>
@@ -106,11 +142,25 @@
       const canvas = document.getElementById("renderCanvas");
       const speedLabel = document.getElementById("speedLabel");
       const progressLabel = document.getElementById("progressLabel");
+      const placeLabel = document.getElementById("placeLabel");
       const finishOverlay = document.getElementById("finishOverlay");
+      const finishTitle = document.getElementById("finishTitle");
+      const finishPlace = document.getElementById("finishPlace");
       const finishTime = document.getElementById("finishTime");
+      const countdownOverlay = document.getElementById("countdownOverlay");
+      const countdownNumber = document.getElementById("countdownNumber");
       const engine = new BABYLON.Engine(canvas, true);
 
-      // --- Controles (iguais da beta) ---
+      // Física IGUAL para jogador e rivais (sem vantagem)
+      const PHYSICS = {
+        maxSpeed: 55,
+        accel: 28,
+        brake: 40,
+        friction: 10,
+        turnRate: 1.2,
+        laneLimit: 5.5,
+      };
+
       const keys = {
         up: false,
         down: false,
@@ -140,27 +190,22 @@
         return mat;
       }
 
-      function createCar(scene) {
-        const car = new BABYLON.TransformNode("car", scene);
+      function createCar(scene, id, bodyColor, accentColor) {
+        const car = new BABYLON.TransformNode("car_" + id, scene);
 
-        const bodyMat = makeNeonMaterial(
-          "bodyMat",
-          scene,
-          new BABYLON.Color3(0.15, 0.75, 1),
-          0.7
-        );
+        const bodyMat = makeNeonMaterial("bodyMat_" + id, scene, bodyColor, 0.7);
         const accentMat = makeNeonMaterial(
-          "accentMat",
+          "accentMat_" + id,
           scene,
-          new BABYLON.Color3(1, 0.2, 0.85),
+          accentColor,
           1
         );
-        const darkMat = new BABYLON.StandardMaterial("darkMat", scene);
+        const darkMat = new BABYLON.StandardMaterial("darkMat_" + id, scene);
         darkMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.1);
         darkMat.emissiveColor = new BABYLON.Color3(0.02, 0.02, 0.05);
 
         const body = BABYLON.MeshBuilder.CreateBox(
-          "body",
+          "body_" + id,
           { width: 1.6, height: 0.45, depth: 3.2 },
           scene
         );
@@ -169,7 +214,7 @@
         body.parent = car;
 
         const cabin = BABYLON.MeshBuilder.CreateBox(
-          "cabin",
+          "cabin_" + id,
           { width: 1.2, height: 0.4, depth: 1.4 },
           scene
         );
@@ -178,7 +223,7 @@
         cabin.parent = car;
 
         const stripe = BABYLON.MeshBuilder.CreateBox(
-          "stripe",
+          "stripe_" + id,
           { width: 1.65, height: 0.08, depth: 3.25 },
           scene
         );
@@ -187,7 +232,7 @@
         stripe.parent = car;
 
         const nose = BABYLON.MeshBuilder.CreateBox(
-          "nose",
+          "nose_" + id,
           { width: 1.2, height: 0.2, depth: 0.8 },
           scene
         );
@@ -198,7 +243,6 @@
         return car;
       }
 
-      // Pontos de controle da pista (curvas suaves, estilo opção A)
       function createTrackControlPoints() {
         return [
           new BABYLON.Vector3(0, 0, 0),
@@ -221,9 +265,7 @@
       function buildPath3D() {
         const controls = createTrackControlPoints();
         const curve = BABYLON.Curve3.CreateCatmullRomSpline(controls, 25, false);
-        const points = curve.getPoints();
-        // Normal inicial para cima → pista no chão
-        return new BABYLON.Path3D(points, new BABYLON.Vector3(0, 1, 0));
+        return new BABYLON.Path3D(curve.getPoints(), new BABYLON.Vector3(0, 1, 0));
       }
 
       function samplePath(path3D, distance) {
@@ -334,7 +376,6 @@
         banner.material = pink;
         banner.parent = gate;
 
-        // Faixas no chão (linha de chegada)
         for (let i = 0; i < 8; i++) {
           const stripe = BABYLON.MeshBuilder.CreateBox(
             "finishStripe_" + i,
@@ -371,6 +412,12 @@
         return building;
       }
 
+      function normalizeAngle(angle) {
+        while (angle > Math.PI) angle -= Math.PI * 2;
+        while (angle < -Math.PI) angle += Math.PI * 2;
+        return angle;
+      }
+
       const createScene = function () {
         const scene = new BABYLON.Scene(engine);
         scene.clearColor = new BABYLON.Color4(0.02, 0.01, 0.08, 1);
@@ -404,40 +451,122 @@
           1
         );
 
-        // Caminho da pista com curvas
         const path3D = buildPath3D();
         const trackLength = path3D.length();
 
-        // Monta a pista pedaço a pedaço (mesmo visual da beta)
         const step = 7;
         let pieceIndex = 0;
         for (let d = 0; d < trackLength; d += step) {
-          const sample = samplePath(path3D, d);
-          createRoadPiece(scene, sample, roadMat, edgeMat, pieceIndex++);
+          createRoadPiece(
+            scene,
+            samplePath(path3D, d),
+            roadMat,
+            edgeMat,
+            pieceIndex++
+          );
         }
 
-        // Linha de chegada no fim
         const finishSample = samplePath(path3D, trackLength - 1);
         createFinishLine(scene, finishSample);
 
-        // Prédios ao longo da pista
         let buildingId = 0;
         for (let d = 10; d < trackLength; d += 14) {
           const sample = samplePath(path3D, d);
           const side = sample.binormal;
-          const leftPos = sample.position.add(side.scale(-(12 + Math.random() * 8)));
-          const rightPos = sample.position.add(side.scale(12 + Math.random() * 8));
-          createBuilding(scene, leftPos, neonColors, buildingId++);
-          createBuilding(scene, rightPos, neonColors, buildingId++);
+          createBuilding(
+            scene,
+            sample.position.add(side.scale(-(12 + Math.random() * 8))),
+            neonColors,
+            buildingId++
+          );
+          createBuilding(
+            scene,
+            sample.position.add(side.scale(12 + Math.random() * 8)),
+            neonColors,
+            buildingId++
+          );
         }
 
-        const car = createCar(scene);
+        // --- Pilotos ---
+        // Opção C: mesma física, mas IA humana (alivia curva + erra direção)
+        function makeRacer(id, name, bodyColor, accentColor, isPlayer, aiStyle) {
+          return {
+            id,
+            name,
+            isPlayer,
+            mesh: createCar(scene, id, bodyColor, accentColor),
+            speed: 0,
+            progress: 0,
+            finished: false,
+            finishTime: null,
+            preferredLane: aiStyle ? aiStyle.preferredLane : 0,
+            lookAhead: aiStyle ? aiStyle.lookAhead : 0,
+            steerDeadzone: aiStyle ? aiStyle.steerDeadzone : 0.08,
+            // Quanto antes alivia o acelerador na curva (maior = mais cauteloso)
+            curveCaution: aiStyle ? aiStyle.curveCaution : 0,
+            // Oscilação da faixa (parece pessoa corrigindo a linha)
+            wobbleAmount: aiStyle ? aiStyle.wobbleAmount : 0,
+            wobbleSpeed: aiStyle ? aiStyle.wobbleSpeed : 0,
+            wobblePhase: aiStyle ? aiStyle.wobblePhase : 0,
+            mistakeTimer: 0,
+            mistakeChance: aiStyle ? aiStyle.mistakeChance : 0,
+          };
+        }
+
+        const player = makeRacer(
+          "player",
+          "Você",
+          new BABYLON.Color3(0.15, 0.75, 1),
+          new BABYLON.Color3(1, 0.2, 0.85),
+          true,
+          null
+        );
+
+        // Nova: mais agressiva, erra mais
+        const rivalA = makeRacer(
+          "rivalA",
+          "Nova",
+          new BABYLON.Color3(1, 0.35, 0.15),
+          new BABYLON.Color3(1, 0.85, 0.2),
+          false,
+          {
+            preferredLane: -2.4,
+            lookAhead: 16,
+            steerDeadzone: 0.16,
+            curveCaution: 0.12,
+            wobbleAmount: 1.4,
+            wobbleSpeed: 1.7,
+            wobblePhase: 0.4,
+            mistakeChance: 0.012,
+          }
+        );
+
+        // Echo: um pouco mais seguro, ainda humano
+        const rivalB = makeRacer(
+          "rivalB",
+          "Echo",
+          new BABYLON.Color3(0.55, 0.25, 1),
+          new BABYLON.Color3(0.3, 1, 0.7),
+          false,
+          {
+            preferredLane: 2.4,
+            lookAhead: 20,
+            steerDeadzone: 0.14,
+            curveCaution: 0.2,
+            wobbleAmount: 0.9,
+            wobbleSpeed: 1.2,
+            wobblePhase: 2.1,
+            mistakeChance: 0.008,
+          }
+        );
+
+        const racers = [player, rivalA, rivalB];
 
         const camera = new BABYLON.FollowCamera(
           "marioKartCam",
           new BABYLON.Vector3(0, 12, -16),
           scene,
-          car
+          player.mesh
         );
         camera.radius = 14;
         camera.heightOffset = 10;
@@ -446,131 +575,270 @@
         camera.maxCameraSpeed = 20;
         camera.inputs.clear();
 
-        // Direção livre: o carro NÃO segue a curva sozinho —
-        // ← → viram o carro; ↑ anda para onde ele aponta.
-        const carState = {
-          speed: 0,
-          maxSpeed: 55,
-          accel: 28,
-          brake: 40,
-          friction: 10,
-          turnRate: 1.2, // radianos por segundo (metade da sensibilidade anterior)
-          laneLimit: 5.5,
-          finished: false,
-          raceTime: 0,
-        };
+        let raceTime = 0;
+        let raceOver = false;
+        let waitingForStart = false;
+        let countdownActive = false;
+        let countdownTimer = 0;
+        let countdownStep = 0; // 0=3, 1=2, 2=1
+        let goDisplayTimer = 0;
+        const countdownLabels = ["3", "2", "1"];
 
-        function placeCarAtStart() {
-          const start = samplePath(path3D, 0);
-          car.position.copyFrom(start.position);
-          car.position.y = 0;
-          car.rotation.y = Math.atan2(start.tangent.x, start.tangent.z);
-          car.rotation.z = 0;
+        function placeRacer(racer, distance, lateral) {
+          const sample = samplePath(path3D, Math.max(0, distance));
+          const pos = sample.position.add(sample.binormal.scale(lateral));
+          racer.mesh.position.copyFrom(pos);
+          racer.mesh.position.y = 0;
+          racer.mesh.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
+          racer.mesh.rotation.z = 0;
+          racer.speed = 0;
+          racer.progress = path3D.getClosestPositionTo(racer.mesh.position);
+          racer.finished = false;
+          racer.finishTime = null;
+        }
+
+        function showReadyScreen() {
+          waitingForStart = true;
+          countdownActive = false;
+          goDisplayTimer = 0;
+          countdownNumber.classList.add("ready");
+          countdownNumber.innerHTML =
+            "Pressione qualquer tecla<br>para largar";
+          countdownOverlay.classList.add("show");
+        }
+
+        function startCountdown() {
+          waitingForStart = false;
+          countdownActive = true;
+          countdownTimer = 0;
+          countdownStep = 0;
+          goDisplayTimer = 0;
+          countdownNumber.classList.remove("ready");
+          countdownNumber.textContent = countdownLabels[0];
+          countdownOverlay.classList.add("show");
         }
 
         function resetRace() {
-          carState.speed = 0;
-          carState.finished = false;
-          carState.raceTime = 0;
-          placeCarAtStart();
+          raceTime = 0;
+          raceOver = false;
+          // Largada justa: todos alinhados na mesma linha
+          placeRacer(player, 0, 0);
+          placeRacer(rivalA, 0, -2.4);
+          placeRacer(rivalB, 0, 2.4);
           finishOverlay.classList.remove("show");
           progressLabel.textContent = "Progresso: 0%";
+          placeLabel.textContent = "Posição: 1º / 3";
+          speedLabel.textContent = "Velocidade: 0";
+          showReadyScreen();
         }
 
         window.addEventListener("keydown", (e) => {
-          if (e.code === "KeyR" && carState.finished) {
+          if (waitingForStart) {
+            e.preventDefault();
+            startCountdown();
+            return;
+          }
+          if (e.code === "KeyR" && raceOver) {
             resetRace();
           }
         });
 
-        placeCarAtStart();
+        resetRace();
+
+        function getAIInput(racer, dt) {
+          if (racer.finished) {
+            return { up: false, down: false, left: false, right: false };
+          }
+
+          const t = path3D.getClosestPositionTo(racer.mesh.position);
+          const lookT = Math.min(1, t + racer.lookAhead / trackLength);
+
+          // Quão fechada é a curva à frente (0 = reta, maior = curva)
+          const tanNow = path3D.getTangentAt(t).normalize();
+          const tanAhead = path3D.getTangentAt(lookT).normalize();
+          const bend = 1 - BABYLON.Vector3.Dot(tanNow, tanAhead);
+
+          const laneOffset =
+            racer.preferredLane +
+            Math.sin(raceTime * racer.wobbleSpeed + racer.wobblePhase) *
+              racer.wobbleAmount;
+
+          const target = path3D
+            .getPointAt(lookT)
+            .add(path3D.getBinormalAt(lookT).normalize().scale(laneOffset));
+
+          const toTarget = target.subtract(racer.mesh.position);
+          const desiredYaw = Math.atan2(toTarget.x, toTarget.z);
+          let yawError = normalizeAngle(desiredYaw - racer.mesh.rotation.y);
+
+          // Erros curtos de direção (hesitação / correção atrasada)
+          if (racer.mistakeTimer > 0) {
+            racer.mistakeTimer -= dt;
+            yawError *= -0.35; // vira um pouco para o lado errado
+          } else if (Math.random() < racer.mistakeChance) {
+            racer.mistakeTimer = 0.2 + Math.random() * 0.25;
+          }
+
+          let left = yawError < -racer.steerDeadzone;
+          let right = yawError > racer.steerDeadzone;
+
+          // Alivia acelerador nas curvas ou quando está desalinhado
+          const sharpCurve = bend > racer.curveCaution;
+          const badlyAligned = Math.abs(yawError) > 0.55;
+          const up = !sharpCurve && !badlyAligned;
+          const down = sharpCurve && bend > racer.curveCaution + 0.08;
+
+          return { up, down, left, right };
+        }
+
+        function applyDrive(racer, input, dt) {
+          if (racer.finished) {
+            racer.speed = 0;
+            return;
+          }
+
+          // Mesma aceleração / freio / atrito do jogador
+          if (input.up) {
+            racer.speed += PHYSICS.accel * dt;
+          } else if (input.down) {
+            racer.speed -= PHYSICS.brake * dt;
+          } else {
+            if (racer.speed > 0) racer.speed -= PHYSICS.friction * dt;
+            else if (racer.speed < 0) racer.speed += PHYSICS.friction * dt;
+            if (Math.abs(racer.speed) < 0.2) racer.speed = 0;
+          }
+
+          racer.speed = Math.max(-12, Math.min(PHYSICS.maxSpeed, racer.speed));
+
+          const steerPower = Math.min(1, Math.abs(racer.speed) / 10);
+          if (input.left) racer.mesh.rotation.y -= PHYSICS.turnRate * steerPower * dt;
+          if (input.right) racer.mesh.rotation.y += PHYSICS.turnRate * steerPower * dt;
+
+          let targetRoll = 0;
+          if (input.left) targetRoll = 0.18;
+          if (input.right) targetRoll = -0.18;
+          racer.mesh.rotation.z +=
+            (targetRoll - racer.mesh.rotation.z) * Math.min(1, 8 * dt);
+
+          const forward = new BABYLON.Vector3(
+            Math.sin(racer.mesh.rotation.y),
+            0,
+            Math.cos(racer.mesh.rotation.y)
+          );
+          racer.mesh.position.addInPlace(forward.scale(racer.speed * dt));
+          racer.mesh.position.y = 0;
+
+          const t = path3D.getClosestPositionTo(racer.mesh.position);
+          const closest = path3D.getPointAt(t);
+          const binormal = path3D.getBinormalAt(t).normalize();
+          const lateral = BABYLON.Vector3.Dot(
+            racer.mesh.position.subtract(closest),
+            binormal
+          );
+
+          if (Math.abs(lateral) > PHYSICS.laneLimit) {
+            const excess = Math.abs(lateral) - PHYSICS.laneLimit;
+            racer.mesh.position.addInPlace(
+              binormal.scale(-Math.sign(lateral) * excess)
+            );
+            racer.speed *= 0.97;
+          }
+
+          racer.progress = path3D.getClosestPositionTo(racer.mesh.position);
+
+          const distToFinish = BABYLON.Vector3.Distance(
+            racer.mesh.position,
+            finishSample.position
+          );
+          if (racer.progress > 0.97 && distToFinish < 10) {
+            racer.finished = true;
+            racer.finishTime = raceTime;
+            racer.speed = 0;
+            racer.progress = 1;
+          }
+        }
+
+        function getPlayerPlace() {
+          let place = 1;
+          for (const other of racers) {
+            if (other === player) continue;
+            if (other.finished && player.finished) {
+              if (other.finishTime < player.finishTime) place += 1;
+            } else if (other.finished && !player.finished) {
+              place += 1;
+            } else if (!other.finished && !player.finished) {
+              if (other.progress > player.progress + 0.001) place += 1;
+            }
+          }
+          return place;
+        }
+
+        function placeText(place) {
+          return place + "º";
+        }
 
         scene.onBeforeRenderObservable.add(() => {
           const dt = engine.getDeltaTime() / 1000;
 
-          if (carState.finished) {
+          if (raceOver) {
             speedLabel.textContent = "Velocidade: 0";
             return;
           }
 
-          carState.raceTime += dt;
-
-          // Aceleração / freio (iguais da beta)
-          if (keys.up) {
-            carState.speed += carState.accel * dt;
-          } else if (keys.down) {
-            carState.speed -= carState.brake * dt;
-          } else {
-            if (carState.speed > 0) {
-              carState.speed -= carState.friction * dt;
-            } else if (carState.speed < 0) {
-              carState.speed += carState.friction * dt;
+          // Esperando tecla ou contagem: ninguém anda
+          if (waitingForStart || countdownActive) {
+            if (countdownActive) {
+              countdownTimer += dt;
+              if (countdownTimer >= 1) {
+                countdownTimer = 0;
+                countdownStep += 1;
+                if (countdownStep >= countdownLabels.length) {
+                  countdownActive = false;
+                  countdownNumber.textContent = "VAI!";
+                  goDisplayTimer = 0.7;
+                } else {
+                  countdownNumber.textContent = countdownLabels[countdownStep];
+                }
+              }
             }
-            if (Math.abs(carState.speed) < 0.2) carState.speed = 0;
+            return;
           }
 
-          carState.speed = Math.max(
-            -12,
-            Math.min(carState.maxSpeed, carState.speed)
-          );
-
-          // Virar o carro (precisa virar nas curvas!)
-          const steerPower = Math.min(1, Math.abs(carState.speed) / 10);
-          if (keys.left) car.rotation.y -= carState.turnRate * steerPower * dt;
-          if (keys.right) car.rotation.y += carState.turnRate * steerPower * dt;
-
-          // Inclinação arcade ao virar
-          let targetRoll = 0;
-          if (keys.left) targetRoll = 0.18;
-          if (keys.right) targetRoll = -0.18;
-          car.rotation.z += (targetRoll - car.rotation.z) * Math.min(1, 8 * dt);
-
-          // Anda na direção em que o carro está olhando
-          const forward = new BABYLON.Vector3(
-            Math.sin(car.rotation.y),
-            0,
-            Math.cos(car.rotation.y)
-          );
-          car.position.addInPlace(forward.scale(carState.speed * dt));
-          car.position.y = 0;
-
-          // Onde estamos na pista? (ponto mais perto do caminho)
-          const t = path3D.getClosestPositionTo(car.position);
-          const closest = path3D.getPointAt(t);
-          const binormal = path3D.getBinormalAt(t).normalize();
-          const toCar = car.position.subtract(closest);
-          const lateral = BABYLON.Vector3.Dot(toCar, binormal);
-
-          // Parede suave nas laterais da pista
-          if (Math.abs(lateral) > carState.laneLimit) {
-            const excess = Math.abs(lateral) - carState.laneLimit;
-            car.position.addInPlace(
-              binormal.scale(-Math.sign(lateral) * excess)
-            );
-            // Bater na lateral reduz velocidade
-            carState.speed *= 0.97;
+          if (goDisplayTimer > 0) {
+            goDisplayTimer -= dt;
+            if (goDisplayTimer <= 0) {
+              countdownOverlay.classList.remove("show");
+            }
           }
 
-          // Chegada: perto do fim do caminho e da linha de chegada
-          const distToFinish = BABYLON.Vector3.Distance(
-            car.position,
-            finishSample.position
-          );
-          if (t > 0.97 && distToFinish < 10) {
-            carState.speed = 0;
-            carState.finished = true;
-            finishTime.textContent =
-              "Tempo: " + carState.raceTime.toFixed(1) + "s";
-            finishOverlay.classList.add("show");
-            progressLabel.textContent = "Progresso: 100%";
-          }
+          raceTime += dt;
 
-          const progress = Math.floor(t * 100);
+          applyDrive(player, keys, dt);
+          applyDrive(rivalA, getAIInput(rivalA, dt), dt);
+          applyDrive(rivalB, getAIInput(rivalB, dt), dt);
+
+          const place = getPlayerPlace();
+          placeLabel.textContent = "Posição: " + placeText(place) + " / 3";
+
+          const progress = Math.floor(player.progress * 100);
           speedLabel.textContent =
-            "Velocidade: " + Math.round(Math.abs(carState.speed));
-          if (!carState.finished) {
+            "Velocidade: " + Math.round(Math.abs(player.speed));
+          if (!player.finished) {
             progressLabel.textContent =
               "Progresso: " + Math.max(0, Math.min(99, progress)) + "%";
+          }
+
+          if (player.finished) {
+            raceOver = true;
+            const finalPlace = getPlayerPlace();
+            progressLabel.textContent = "Progresso: 100%";
+            placeLabel.textContent = "Posição: " + placeText(finalPlace) + " / 3";
+            finishTitle.textContent =
+              finalPlace === 1 ? "VENCEU!" : "CHEGOU!";
+            finishPlace.textContent =
+              "Você ficou em " + placeText(finalPlace);
+            finishTime.textContent = "Tempo: " + raceTime.toFixed(1) + "s";
+            finishOverlay.classList.add("show");
           }
         });
 
