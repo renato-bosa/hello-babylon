@@ -46,22 +46,71 @@
         font-size: 14px;
         opacity: 0.9;
       }
+
+      #finishOverlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 3;
+        align-items: center;
+        justify-content: center;
+        background: rgba(5, 1, 20, 0.55);
+        pointer-events: none;
+      }
+
+      #finishOverlay.show {
+        display: flex;
+      }
+
+      #finishCard {
+        text-align: center;
+        color: #fff;
+        padding: 28px 40px;
+        border: 2px solid #ff4fd8;
+        box-shadow: 0 0 30px rgba(255, 79, 216, 0.45);
+        background: rgba(10, 4, 30, 0.85);
+      }
+
+      #finishCard h2 {
+        margin: 0 0 10px;
+        font-size: 42px;
+        letter-spacing: 3px;
+        color: #ff4fd8;
+        text-shadow: 0 0 16px #ff4fd8;
+      }
+
+      #finishCard p {
+        margin: 0;
+        font-size: 16px;
+        color: #b8f3ff;
+      }
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
   </head>
   <body>
     <div id="hud">
       <h1>NEON RUSH</h1>
-      <p>↑ acelerar · ↓ frear · ← → dirigir</p>
+      <p>↑ acelerar · ↓ frear · ← → virar</p>
       <p id="speedLabel">Velocidade: 0</p>
+      <p id="progressLabel">Progresso: 0%</p>
+    </div>
+    <div id="finishOverlay">
+      <div id="finishCard">
+        <h2>CHEGOU!</h2>
+        <p id="finishTime">Tempo: 0s</p>
+        <p>Pressione R para correr de novo</p>
+      </div>
     </div>
     <canvas id="renderCanvas"></canvas>
     <script>
       const canvas = document.getElementById("renderCanvas");
       const speedLabel = document.getElementById("speedLabel");
+      const progressLabel = document.getElementById("progressLabel");
+      const finishOverlay = document.getElementById("finishOverlay");
+      const finishTime = document.getElementById("finishTime");
       const engine = new BABYLON.Engine(canvas, true);
 
-      // --- Controles ---
+      // --- Controles (iguais da beta) ---
       const keys = {
         up: false,
         down: false,
@@ -149,68 +198,172 @@
         return car;
       }
 
-      function createRoadSegment(scene, z, roadMat, edgeMat) {
-        const group = new BABYLON.TransformNode("roadSeg_" + z, scene);
+      // Pontos de controle da pista (curvas suaves, estilo opção A)
+      function createTrackControlPoints() {
+        return [
+          new BABYLON.Vector3(0, 0, 0),
+          new BABYLON.Vector3(0, 0, 50),
+          new BABYLON.Vector3(8, 0, 100),
+          new BABYLON.Vector3(28, 0, 150),
+          new BABYLON.Vector3(35, 0, 210),
+          new BABYLON.Vector3(18, 0, 270),
+          new BABYLON.Vector3(-10, 0, 320),
+          new BABYLON.Vector3(-30, 0, 380),
+          new BABYLON.Vector3(-22, 0, 440),
+          new BABYLON.Vector3(0, 0, 500),
+          new BABYLON.Vector3(20, 0, 560),
+          new BABYLON.Vector3(12, 0, 620),
+          new BABYLON.Vector3(0, 0, 680),
+          new BABYLON.Vector3(0, 0, 740),
+        ];
+      }
+
+      function buildPath3D() {
+        const controls = createTrackControlPoints();
+        const curve = BABYLON.Curve3.CreateCatmullRomSpline(controls, 25, false);
+        const points = curve.getPoints();
+        // Normal inicial para cima → pista no chão
+        return new BABYLON.Path3D(points, new BABYLON.Vector3(0, 1, 0));
+      }
+
+      function samplePath(path3D, distance) {
+        const total = path3D.length();
+        const t = Math.max(0, Math.min(1, distance / total));
+        return {
+          total,
+          t,
+          position: path3D.getPointAt(t),
+          tangent: path3D.getTangentAt(t).normalize(),
+          normal: path3D.getNormalAt(t).normalize(),
+          binormal: path3D.getBinormalAt(t).normalize(),
+        };
+      }
+
+      function createRoadPiece(scene, sample, roadMat, edgeMat, index) {
+        const pieceLength = 8;
+        const group = new BABYLON.TransformNode("roadPiece_" + index, scene);
+        group.position.copyFrom(sample.position);
+        group.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
 
         const road = BABYLON.MeshBuilder.CreateGround(
-          "road_" + z,
-          { width: 14, height: 40 },
+          "road_" + index,
+          { width: 14, height: pieceLength },
           scene
         );
-        road.position.set(0, 0, z);
         road.material = roadMat;
         road.parent = group;
 
         const leftEdge = BABYLON.MeshBuilder.CreateBox(
-          "leftEdge_" + z,
-          { width: 0.25, height: 0.2, depth: 40 },
+          "leftEdge_" + index,
+          { width: 0.25, height: 0.2, depth: pieceLength },
           scene
         );
-        leftEdge.position.set(-7, 0.1, z);
+        leftEdge.position.set(-7, 0.1, 0);
         leftEdge.material = edgeMat;
         leftEdge.parent = group;
 
         const rightEdge = BABYLON.MeshBuilder.CreateBox(
-          "rightEdge_" + z,
-          { width: 0.25, height: 0.2, depth: 40 },
+          "rightEdge_" + index,
+          { width: 0.25, height: 0.2, depth: pieceLength },
           scene
         );
-        rightEdge.position.set(7, 0.1, z);
+        rightEdge.position.set(7, 0.1, 0);
         rightEdge.material = edgeMat;
         rightEdge.parent = group;
 
-        // Faixa central tracejada
-        for (let i = 0; i < 4; i++) {
-          const dash = BABYLON.MeshBuilder.CreateBox(
-            "dash_" + z + "_" + i,
-            { width: 0.2, height: 0.05, depth: 3 },
-            scene
-          );
-          dash.position.set(0, 0.03, z - 15 + i * 10);
-          dash.material = edgeMat;
-          dash.parent = group;
-        }
+        const dash = BABYLON.MeshBuilder.CreateBox(
+          "dash_" + index,
+          { width: 0.2, height: 0.05, depth: 3 },
+          scene
+        );
+        dash.position.set(0, 0.03, 0);
+        dash.material = edgeMat;
+        dash.parent = group;
 
         return group;
       }
 
-      function createBuilding(scene, x, z, neonColors) {
+      function createFinishLine(scene, sample) {
+        const gate = new BABYLON.TransformNode("finishGate", scene);
+        gate.position.copyFrom(sample.position);
+        gate.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
+
+        const pink = makeNeonMaterial(
+          "finishPink",
+          scene,
+          new BABYLON.Color3(1, 0.2, 0.85),
+          1
+        );
+        const cyan = makeNeonMaterial(
+          "finishCyan",
+          scene,
+          new BABYLON.Color3(0.2, 0.95, 1),
+          1
+        );
+        const white = makeNeonMaterial(
+          "finishWhite",
+          scene,
+          new BABYLON.Color3(1, 1, 1),
+          0.9
+        );
+
+        const leftPost = BABYLON.MeshBuilder.CreateBox(
+          "leftPost",
+          { width: 0.4, height: 6, depth: 0.4 },
+          scene
+        );
+        leftPost.position.set(-7, 3, 0);
+        leftPost.material = pink;
+        leftPost.parent = gate;
+
+        const rightPost = BABYLON.MeshBuilder.CreateBox(
+          "rightPost",
+          { width: 0.4, height: 6, depth: 0.4 },
+          scene
+        );
+        rightPost.position.set(7, 3, 0);
+        rightPost.material = cyan;
+        rightPost.parent = gate;
+
+        const banner = BABYLON.MeshBuilder.CreateBox(
+          "banner",
+          { width: 14.4, height: 1.2, depth: 0.2 },
+          scene
+        );
+        banner.position.set(0, 5.5, 0);
+        banner.material = pink;
+        banner.parent = gate;
+
+        // Faixas no chão (linha de chegada)
+        for (let i = 0; i < 8; i++) {
+          const stripe = BABYLON.MeshBuilder.CreateBox(
+            "finishStripe_" + i,
+            { width: 1.6, height: 0.06, depth: 1.2 },
+            scene
+          );
+          stripe.position.set(-6.3 + i * 1.8, 0.04, 0);
+          stripe.material = i % 2 === 0 ? white : pink;
+          stripe.parent = gate;
+        }
+
+        return gate;
+      }
+
+      function createBuilding(scene, position, neonColors, id) {
         const height = 6 + Math.random() * 18;
         const width = 3 + Math.random() * 3;
         const depth = 3 + Math.random() * 3;
 
         const building = BABYLON.MeshBuilder.CreateBox(
-          "building_" + x + "_" + z,
+          "building_" + id,
           { width, height, depth },
           scene
         );
-        building.position.set(x, height / 2, z);
+        building.position.copyFrom(position);
+        building.position.y = height / 2;
 
         const color = neonColors[Math.floor(Math.random() * neonColors.length)];
-        const mat = new BABYLON.StandardMaterial(
-          "buildMat_" + x + "_" + z,
-          scene
-        );
+        const mat = new BABYLON.StandardMaterial("buildMat_" + id, scene);
         mat.diffuseColor = new BABYLON.Color3(0.02, 0.02, 0.06);
         mat.emissiveColor = color.scale(0.35 + Math.random() * 0.35);
         building.material = mat;
@@ -225,7 +378,6 @@
         scene.fogDensity = 0.012;
         scene.fogColor = new BABYLON.Color3(0.04, 0.02, 0.1);
 
-        // Luz fraca + ambiente neon
         const hemi = new BABYLON.HemisphericLight(
           "hemi",
           new BABYLON.Vector3(0, 1, 0),
@@ -252,11 +404,35 @@
           1
         );
 
-        // Carro do jogador
-        const car = createCar(scene);
-        car.position.set(0, 0, 0);
+        // Caminho da pista com curvas
+        const path3D = buildPath3D();
+        const trackLength = path3D.length();
 
-        // Câmera estilo Mario Kart: atrás e de cima
+        // Monta a pista pedaço a pedaço (mesmo visual da beta)
+        const step = 7;
+        let pieceIndex = 0;
+        for (let d = 0; d < trackLength; d += step) {
+          const sample = samplePath(path3D, d);
+          createRoadPiece(scene, sample, roadMat, edgeMat, pieceIndex++);
+        }
+
+        // Linha de chegada no fim
+        const finishSample = samplePath(path3D, trackLength - 1);
+        createFinishLine(scene, finishSample);
+
+        // Prédios ao longo da pista
+        let buildingId = 0;
+        for (let d = 10; d < trackLength; d += 14) {
+          const sample = samplePath(path3D, d);
+          const side = sample.binormal;
+          const leftPos = sample.position.add(side.scale(-(12 + Math.random() * 8)));
+          const rightPos = sample.position.add(side.scale(12 + Math.random() * 8));
+          createBuilding(scene, leftPos, neonColors, buildingId++);
+          createBuilding(scene, rightPos, neonColors, buildingId++);
+        }
+
+        const car = createCar(scene);
+
         const camera = new BABYLON.FollowCamera(
           "marioKartCam",
           new BABYLON.Vector3(0, 12, -16),
@@ -268,47 +444,63 @@
         camera.rotationOffset = 180;
         camera.cameraAcceleration = 0.05;
         camera.maxCameraSpeed = 20;
-        // Sem controle manual da câmera — só segue o carro
         camera.inputs.clear();
 
-        // Pista em pedaços que se repetem (sensação de infinito)
-        const segmentLength = 40;
-        const segmentCount = 6;
-        const roadSegments = [];
-        for (let i = 0; i < segmentCount; i++) {
-          const z = i * segmentLength;
-          roadSegments.push(createRoadSegment(scene, z, roadMat, edgeMat));
-        }
-
-        // Prédios de fundo nas laterais
-        const buildings = [];
-        for (let i = 0; i < 40; i++) {
-          const z = i * 12;
-          buildings.push(createBuilding(scene, -14 - Math.random() * 8, z, neonColors));
-          buildings.push(createBuilding(scene, 14 + Math.random() * 8, z, neonColors));
-        }
-
-        // Estado do carro
+        // Direção livre: o carro NÃO segue a curva sozinho —
+        // ← → viram o carro; ↑ anda para onde ele aponta.
         const carState = {
           speed: 0,
           maxSpeed: 55,
           accel: 28,
           brake: 40,
           friction: 10,
-          turnSpeed: 18,
+          turnRate: 1.2, // radianos por segundo (metade da sensibilidade anterior)
           laneLimit: 5.5,
+          finished: false,
+          raceTime: 0,
         };
+
+        function placeCarAtStart() {
+          const start = samplePath(path3D, 0);
+          car.position.copyFrom(start.position);
+          car.position.y = 0;
+          car.rotation.y = Math.atan2(start.tangent.x, start.tangent.z);
+          car.rotation.z = 0;
+        }
+
+        function resetRace() {
+          carState.speed = 0;
+          carState.finished = false;
+          carState.raceTime = 0;
+          placeCarAtStart();
+          finishOverlay.classList.remove("show");
+          progressLabel.textContent = "Progresso: 0%";
+        }
+
+        window.addEventListener("keydown", (e) => {
+          if (e.code === "KeyR" && carState.finished) {
+            resetRace();
+          }
+        });
+
+        placeCarAtStart();
 
         scene.onBeforeRenderObservable.add(() => {
           const dt = engine.getDeltaTime() / 1000;
 
-          // Aceleração / freio
+          if (carState.finished) {
+            speedLabel.textContent = "Velocidade: 0";
+            return;
+          }
+
+          carState.raceTime += dt;
+
+          // Aceleração / freio (iguais da beta)
           if (keys.up) {
             carState.speed += carState.accel * dt;
           } else if (keys.down) {
             carState.speed -= carState.brake * dt;
           } else {
-            // desacelera sozinho um pouco
             if (carState.speed > 0) {
               carState.speed -= carState.friction * dt;
             } else if (carState.speed < 0) {
@@ -322,49 +514,64 @@
             Math.min(carState.maxSpeed, carState.speed)
           );
 
-          // Direção (só vira bem quando está andando)
-          const steerPower = Math.min(1, Math.abs(carState.speed) / 12);
-          if (keys.left) car.position.x -= carState.turnSpeed * steerPower * dt;
-          if (keys.right) car.position.x += carState.turnSpeed * steerPower * dt;
+          // Virar o carro (precisa virar nas curvas!)
+          const steerPower = Math.min(1, Math.abs(carState.speed) / 10);
+          if (keys.left) car.rotation.y -= carState.turnRate * steerPower * dt;
+          if (keys.right) car.rotation.y += carState.turnRate * steerPower * dt;
 
-          // Limite da pista
-          car.position.x = Math.max(
-            -carState.laneLimit,
-            Math.min(carState.laneLimit, car.position.x)
-          );
-
-          // Inclinação leve ao virar (estilo arcade)
+          // Inclinação arcade ao virar
           let targetRoll = 0;
           if (keys.left) targetRoll = 0.18;
           if (keys.right) targetRoll = -0.18;
           car.rotation.z += (targetRoll - car.rotation.z) * Math.min(1, 8 * dt);
 
-          // Avança na pista
-          car.position.z += carState.speed * dt;
+          // Anda na direção em que o carro está olhando
+          const forward = new BABYLON.Vector3(
+            Math.sin(car.rotation.y),
+            0,
+            Math.cos(car.rotation.y)
+          );
+          car.position.addInPlace(forward.scale(carState.speed * dt));
+          car.position.y = 0;
 
-          // Recicla pedaços da pista atrás do carro
-          for (const seg of roadSegments) {
-            const roadMesh = seg.getChildren()[0];
-            if (roadMesh.position.z + segmentLength / 2 < car.position.z - 20) {
-              const maxZ = Math.max(
-                ...roadSegments.map((s) => s.getChildren()[0].position.z)
-              );
-              const delta = maxZ + segmentLength - roadMesh.position.z;
-              for (const child of seg.getChildren()) {
-                child.position.z += delta;
-              }
-            }
+          // Onde estamos na pista? (ponto mais perto do caminho)
+          const t = path3D.getClosestPositionTo(car.position);
+          const closest = path3D.getPointAt(t);
+          const binormal = path3D.getBinormalAt(t).normalize();
+          const toCar = car.position.subtract(closest);
+          const lateral = BABYLON.Vector3.Dot(toCar, binormal);
+
+          // Parede suave nas laterais da pista
+          if (Math.abs(lateral) > carState.laneLimit) {
+            const excess = Math.abs(lateral) - carState.laneLimit;
+            car.position.addInPlace(
+              binormal.scale(-Math.sign(lateral) * excess)
+            );
+            // Bater na lateral reduz velocidade
+            carState.speed *= 0.97;
           }
 
-          // Recicla prédios atrás do carro
-          for (const building of buildings) {
-            if (building.position.z < car.position.z - 30) {
-              building.position.z += 480;
-            }
+          // Chegada: perto do fim do caminho e da linha de chegada
+          const distToFinish = BABYLON.Vector3.Distance(
+            car.position,
+            finishSample.position
+          );
+          if (t > 0.97 && distToFinish < 10) {
+            carState.speed = 0;
+            carState.finished = true;
+            finishTime.textContent =
+              "Tempo: " + carState.raceTime.toFixed(1) + "s";
+            finishOverlay.classList.add("show");
+            progressLabel.textContent = "Progresso: 100%";
           }
 
+          const progress = Math.floor(t * 100);
           speedLabel.textContent =
             "Velocidade: " + Math.round(Math.abs(carState.speed));
+          if (!carState.finished) {
+            progressLabel.textContent =
+              "Progresso: " + Math.max(0, Math.min(99, progress)) + "%";
+          }
         });
 
         return scene;
