@@ -948,6 +948,63 @@
         return gate;
       }
 
+      // Cache de fachadas procedurais (poucas texturas, muitos prédios)
+      const facadeTextureCache = {};
+
+      function getFacadeTexture(scene, bucket) {
+        if (facadeTextureCache[bucket]) return facadeTextureCache[bucket];
+
+        const rowsByBucket = { short: 4, mid: 7, tall: 10 };
+        const rows = rowsByBucket[bucket] || 7;
+        const cols = 3;
+        const sizeW = 256;
+        const sizeH = 512;
+        const tex = new BABYLON.DynamicTexture(
+          "facade_" + bucket,
+          { width: sizeW, height: sizeH },
+          scene,
+          false
+        );
+        const ctx = tex.getContext();
+
+        // Estrutura escura (parede)
+        ctx.fillStyle = "#0a0a14";
+        ctx.fillRect(0, 0, sizeW, sizeH);
+
+        // Porta de vidro na base (centro)
+        ctx.fillStyle = "#5ee7ff";
+        ctx.globalAlpha = 0.75;
+        const doorW = sizeW * 0.28;
+        const doorH = sizeH * 0.11;
+        ctx.fillRect((sizeW - doorW) / 2, sizeH - doorH - 8, doorW, doorH);
+        ctx.strokeStyle = "#9af6ff";
+        ctx.lineWidth = 3;
+        ctx.strokeRect((sizeW - doorW) / 2, sizeH - doorH - 8, doorW, doorH);
+
+        // Grade de janelas (branco/ciano → tingido pela emissiveColor do material)
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            // Evita cobrir a porta
+            if (r === 0 && c === 1) continue;
+            const lit = Math.random() > 0.22;
+            ctx.globalAlpha = lit ? 0.9 : 0.18;
+            ctx.fillStyle = lit ? "#c8f7ff" : "#152030";
+            const cellW = sizeW / cols;
+            const cellH = (sizeH * 0.82) / rows;
+            const ww = cellW * 0.58;
+            const wh = cellH * 0.48;
+            const x = c * cellW + (cellW - ww) / 2;
+            const y = 12 + r * cellH + (cellH - wh) / 2;
+            ctx.fillRect(x, y, ww, wh);
+          }
+        }
+
+        ctx.globalAlpha = 1;
+        tex.update(true);
+        facadeTextureCache[bucket] = tex;
+        return tex;
+      }
+
       function createBuilding(scene, position, neonColors, id) {
         const height = 6 + Math.random() * 18;
         const width = 3 + Math.random() * 3;
@@ -955,78 +1012,38 @@
         const group = new BABYLON.TransformNode("buildingGroup_" + id, scene);
         group.position.copyFrom(position);
 
+        const color = neonColors[Math.floor(Math.random() * neonColors.length)];
+        const glow = 0.55 + Math.random() * 0.35;
+        const bucket = height < 10 ? "short" : height < 16 ? "mid" : "tall";
+        const facadeTex = getFacadeTexture(scene, bucket);
+
+        // Topo/base sem fachada; laterais com a textura inteira
+        const faceUV = [];
+        for (let i = 0; i < 6; i++) {
+          // 0-3 laterais, 4 topo, 5 base (padrão CreateBox)
+          if (i < 4) {
+            faceUV.push(new BABYLON.Vector4(0, 0, 1, 1));
+          } else {
+            faceUV.push(new BABYLON.Vector4(0, 0, 0.02, 0.02));
+          }
+        }
+
         const building = BABYLON.MeshBuilder.CreateBox(
           "building_" + id,
-          { width, height, depth },
+          { width: width, height: height, depth: depth, faceUV: faceUV },
           scene
         );
         building.position.y = height / 2;
         building.parent = group;
 
-        const color = neonColors[Math.floor(Math.random() * neonColors.length)];
         const mat = new BABYLON.StandardMaterial("buildMat_" + id, scene);
         mat.diffuseColor = new BABYLON.Color3(0.04, 0.04, 0.08);
-        mat.emissiveColor = color.scale(0.08);
+        mat.diffuseTexture = facadeTex;
+        mat.emissiveTexture = facadeTex;
+        // Mesma família de cores neon de antes
+        mat.emissiveColor = color.scale(glow);
+        mat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.15);
         building.material = mat;
-
-        const glassMat = new BABYLON.StandardMaterial("winMat_" + id, scene);
-        glassMat.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.3);
-        glassMat.emissiveColor = color.scale(0.55 + Math.random() * 0.35);
-        glassMat.alpha = 0.85;
-        glassMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-
-        const doorMat = new BABYLON.StandardMaterial("doorMat_" + id, scene);
-        doorMat.diffuseColor = new BABYLON.Color3(0.05, 0.08, 0.12);
-        doorMat.emissiveColor = new BABYLON.Color3(0.15, 0.35, 0.45);
-        doorMat.alpha = 0.9;
-        doorMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
-
-        // Janelas nas 4 faces + porta de vidro na face frontal (Z+)
-        const faces = [
-          { axis: "x", sign: -1, w: depth, d: width },
-          { axis: "x", sign: 1, w: depth, d: width },
-          { axis: "z", sign: -1, w: width, d: depth },
-          { axis: "z", sign: 1, w: width, d: depth },
-        ];
-
-        let winId = 0;
-        faces.forEach(function (face, faceIndex) {
-          const cols = 2 + Math.floor(Math.random() * 2);
-          const rows = Math.max(2, Math.floor(height / 2.2));
-          const faceWidth = face.axis === "x" ? depth : width;
-          const inset = (face.axis === "x" ? width : depth) / 2 + 0.03;
-
-          for (let row = 0; row < rows; row++) {
-            for (let col = 0; col < cols; col++) {
-              const isDoor =
-                faceIndex === 3 && row === 0 && col === Math.floor(cols / 2);
-              const winW = faceWidth / (cols + 1) * 0.7;
-              const winH = isDoor ? 1.4 : 0.7;
-              const win = BABYLON.MeshBuilder.CreateBox(
-                "win_" + id + "_" + winId++,
-                {
-                  width: face.axis === "z" ? winW : 0.06,
-                  height: winH,
-                  depth: face.axis === "x" ? winW : 0.06,
-                },
-                scene
-              );
-
-              const xSpread = faceWidth * 0.55;
-              const along =
-                -xSpread / 2 + ((col + 0.5) * xSpread) / cols;
-              const y = isDoor ? winH / 2 + 0.05 : 1.6 + row * 1.8;
-
-              if (face.axis === "x") {
-                win.position.set(face.sign * inset, y, along);
-              } else {
-                win.position.set(along, y, face.sign * inset);
-              }
-              win.material = isDoor ? doorMat : glassMat;
-              win.parent = group;
-            }
-          }
-        });
 
         return group;
       }
@@ -1581,20 +1598,15 @@
           });
         }
 
-        function setBuildingWindowsEnabled(enabled) {
-          buildingGroups.forEach(function (group) {
-            group.getChildren().forEach(function (child) {
-              if (child.name && child.name.indexOf("win_") === 0) {
-                child.setEnabled(enabled);
-              }
-            });
+        function setHalfBuildingsEnabled() {
+          buildingGroups.forEach(function (group, index) {
+            group.setEnabled(index % 2 === 0);
           });
         }
 
         function restorePerfScene() {
           setNodesEnabled(roadPieces, true);
           setNodesEnabled(buildingGroups, true);
-          setBuildingWindowsEnabled(true);
           if (finishGate) finishGate.setEnabled(true);
           player.mesh.setEnabled(true);
           rivalA.mesh.setEnabled(false);
@@ -1676,8 +1688,8 @@
             await measure("2) Sem prédios", function () {
               setNodesEnabled(buildingGroups, false);
             });
-            await measure("3) Prédios sem janelas/portas", function () {
-              setBuildingWindowsEnabled(false);
+            await measure("3) Metade dos prédios", function () {
+              setHalfBuildingsEnabled();
             });
             await measure("4) Sem pedaços da pista", function () {
               setNodesEnabled(roadPieces, false);
