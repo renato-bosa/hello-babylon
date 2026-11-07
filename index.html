@@ -919,6 +919,7 @@
         bannerMat.diffuseTexture = finishTex;
         bannerMat.emissiveTexture = finishTex;
         bannerMat.emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+        // Sem segunda placa: evita flicker. Sem culling: continua visível na aproximação.
         bannerMat.backFaceCulling = false;
 
         const banner = BABYLON.MeshBuilder.CreatePlane(
@@ -929,10 +930,6 @@
         banner.position.set(0, 5.4, 0);
         banner.material = bannerMat;
         banner.parent = gate;
-
-        const bannerBack = banner.clone("finishBannerBack");
-        bannerBack.rotation.y = Math.PI;
-        bannerBack.parent = gate;
 
         for (let i = 0; i < 8; i++) {
           const stripe = BABYLON.MeshBuilder.CreateBox(
@@ -948,11 +945,19 @@
         return gate;
       }
 
-      // Cache de fachadas procedurais (poucas texturas, muitos prédios)
+      // Cache: altura × cor (paredes pretas, janelas já na cor neon)
       const facadeTextureCache = {};
 
-      function getFacadeTexture(scene, bucket) {
-        if (facadeTextureCache[bucket]) return facadeTextureCache[bucket];
+      function colorToRgb(color, brightness) {
+        const r = Math.round(Math.min(1, color.r * brightness) * 255);
+        const g = Math.round(Math.min(1, color.g * brightness) * 255);
+        const b = Math.round(Math.min(1, color.b * brightness) * 255);
+        return "rgb(" + r + "," + g + "," + b + ")";
+      }
+
+      function getFacadeTexture(scene, bucket, colorIndex, color) {
+        const key = bucket + "_" + colorIndex;
+        if (facadeTextureCache[key]) return facadeTextureCache[key];
 
         const rowsByBucket = { short: 4, mid: 7, tall: 10 };
         const rows = rowsByBucket[bucket] || 7;
@@ -960,35 +965,35 @@
         const sizeW = 256;
         const sizeH = 512;
         const tex = new BABYLON.DynamicTexture(
-          "facade_" + bucket,
+          "facade_" + key,
           { width: sizeW, height: sizeH },
           scene,
-          false
+          true
         );
         const ctx = tex.getContext();
 
-        // Estrutura escura (parede)
-        ctx.fillStyle = "#0a0a14";
+        // Fundo preto sólido (parede)
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = "#03030a";
         ctx.fillRect(0, 0, sizeW, sizeH);
 
-        // Porta de vidro na base (centro)
-        ctx.fillStyle = "#5ee7ff";
-        ctx.globalAlpha = 0.75;
+        // Porta de vidro na cor neon
         const doorW = sizeW * 0.28;
         const doorH = sizeH * 0.11;
+        ctx.fillStyle = colorToRgb(color, 0.9);
         ctx.fillRect((sizeW - doorW) / 2, sizeH - doorH - 8, doorW, doorH);
-        ctx.strokeStyle = "#9af6ff";
+        ctx.strokeStyle = colorToRgb(color, 1);
         ctx.lineWidth = 3;
         ctx.strokeRect((sizeW - doorW) / 2, sizeH - doorH - 8, doorW, doorH);
 
-        // Grade de janelas (branco/ciano → tingido pela emissiveColor do material)
+        // Janelas coloridas (acesas / apagadas)
         for (let r = 0; r < rows; r++) {
           for (let c = 0; c < cols; c++) {
-            // Evita cobrir a porta
             if (r === 0 && c === 1) continue;
             const lit = Math.random() > 0.22;
-            ctx.globalAlpha = lit ? 0.9 : 0.18;
-            ctx.fillStyle = lit ? "#c8f7ff" : "#152030";
+            ctx.fillStyle = lit
+              ? colorToRgb(color, 0.75 + Math.random() * 0.35)
+              : "#0c0c14";
             const cellW = sizeW / cols;
             const cellH = (sizeH * 0.82) / rows;
             const ww = cellW * 0.58;
@@ -999,9 +1004,9 @@
           }
         }
 
-        ctx.globalAlpha = 1;
+        tex.hasAlpha = false;
         tex.update(true);
-        facadeTextureCache[bucket] = tex;
+        facadeTextureCache[key] = tex;
         return tex;
       }
 
@@ -1012,37 +1017,28 @@
         const group = new BABYLON.TransformNode("buildingGroup_" + id, scene);
         group.position.copyFrom(position);
 
-        const color = neonColors[Math.floor(Math.random() * neonColors.length)];
-        const glow = 0.55 + Math.random() * 0.35;
+        const colorIndex = Math.floor(Math.random() * neonColors.length);
+        const color = neonColors[colorIndex];
         const bucket = height < 10 ? "short" : height < 16 ? "mid" : "tall";
-        const facadeTex = getFacadeTexture(scene, bucket);
-
-        // Topo/base sem fachada; laterais com a textura inteira
-        const faceUV = [];
-        for (let i = 0; i < 6; i++) {
-          // 0-3 laterais, 4 topo, 5 base (padrão CreateBox)
-          if (i < 4) {
-            faceUV.push(new BABYLON.Vector4(0, 0, 1, 1));
-          } else {
-            faceUV.push(new BABYLON.Vector4(0, 0, 0.02, 0.02));
-          }
-        }
+        const facadeTex = getFacadeTexture(scene, bucket, colorIndex, color);
 
         const building = BABYLON.MeshBuilder.CreateBox(
           "building_" + id,
-          { width: width, height: height, depth: depth, faceUV: faceUV },
+          { width: width, height: height, depth: depth },
           scene
         );
         building.position.y = height / 2;
         building.parent = group;
 
         const mat = new BABYLON.StandardMaterial("buildMat_" + id, scene);
-        mat.diffuseColor = new BABYLON.Color3(0.04, 0.04, 0.08);
+        // Textura na diffuse (paredes pretas + janelas coloridas)
+        // e um pouco na emissive (brilho neon só onde a textura é clara)
         mat.diffuseTexture = facadeTex;
+        mat.diffuseColor = new BABYLON.Color3(1, 1, 1);
         mat.emissiveTexture = facadeTex;
-        // Mesma família de cores neon de antes
-        mat.emissiveColor = color.scale(glow);
-        mat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.15);
+        mat.emissiveColor = new BABYLON.Color3(0.55, 0.55, 0.55);
+        mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.08);
+        mat.disableLighting = false;
         building.material = mat;
 
         return group;
