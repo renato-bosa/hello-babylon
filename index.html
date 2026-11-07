@@ -23,6 +23,7 @@
       }
 
       #hud {
+        display: none;
         position: fixed;
         left: 16px;
         top: 16px;
@@ -31,6 +32,199 @@
         pointer-events: none;
         user-select: none;
         z-index: 2;
+      }
+
+      #hud.show {
+        display: block;
+      }
+
+      /* Hub estilo Brawl Stars / Stumble Guys: carro no centro */
+      #mainMenu {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 5;
+        pointer-events: none;
+        background: radial-gradient(
+          ellipse 55% 50% at 50% 55%,
+          transparent 0%,
+          rgba(5, 1, 20, 0.15) 55%,
+          rgba(5, 1, 20, 0.55) 100%
+        );
+      }
+
+      #mainMenu.show {
+        display: block;
+      }
+
+      #mainMenu .hit {
+        pointer-events: auto;
+      }
+
+      .menu-brand {
+        position: absolute;
+        top: 18px;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        pointer-events: none;
+      }
+
+      .menu-brand h1 {
+        margin: 0;
+        font-size: clamp(28px, 6vw, 48px);
+        letter-spacing: 6px;
+        color: #ff4fd8;
+        text-shadow: 0 0 18px #ff4fd8, 0 0 36px #00e5ff;
+      }
+
+      .menu-brand p {
+        margin: 4px 0 0;
+        font-size: 12px;
+        letter-spacing: 3px;
+        color: #b8f3ff;
+        text-shadow: 0 0 8px #00e5ff;
+      }
+
+      .menu-rail {
+        position: absolute;
+        left: 14px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        width: 86px;
+      }
+
+      .menu-money {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 2px;
+        padding: 10px 8px;
+        border: 2px solid #ffd24a;
+        background: rgba(10, 4, 30, 0.82);
+        box-shadow: 0 0 14px rgba(255, 210, 74, 0.25);
+        color: #ffe79a;
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 1px;
+      }
+
+      .menu-money span {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 1px;
+        opacity: 0.85;
+      }
+
+      .rail-btn {
+        appearance: none;
+        width: 100%;
+        min-height: 72px;
+        padding: 8px 6px;
+        border: 2px solid #00e5ff;
+        background: rgba(10, 4, 30, 0.82);
+        color: #b8f3ff;
+        font-size: 11px;
+        letter-spacing: 1px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        text-shadow: 0 0 8px #00e5ff;
+        transition: background 0.15s ease, box-shadow 0.15s ease,
+          transform 0.15s ease;
+      }
+
+      .rail-btn .icon {
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .rail-btn:hover:not(:disabled),
+      .rail-btn:focus-visible:not(:disabled) {
+        background: rgba(0, 229, 255, 0.18);
+        box-shadow: 0 0 16px rgba(0, 229, 255, 0.3);
+        outline: none;
+      }
+
+      .rail-btn:disabled {
+        opacity: 0.4;
+        cursor: default;
+        border-color: #556;
+        color: #99a;
+        text-shadow: none;
+      }
+
+      .menu-play-wrap {
+        position: absolute;
+        right: 18px;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+        width: min(200px, 42vw);
+      }
+
+      .play-btn {
+        appearance: none;
+        border: 3px solid #39ff9f;
+        background: linear-gradient(
+          180deg,
+          rgba(57, 255, 159, 0.35),
+          rgba(20, 120, 80, 0.55)
+        );
+        color: #eafff4;
+        font-size: clamp(22px, 4vw, 30px);
+        font-weight: 800;
+        letter-spacing: 3px;
+        padding: 22px 18px;
+        cursor: pointer;
+        text-shadow: 0 0 12px rgba(57, 255, 159, 0.8);
+        box-shadow: 0 0 28px rgba(57, 255, 159, 0.35);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      .play-btn:hover,
+      .play-btn:focus-visible {
+        transform: scale(1.04);
+        box-shadow: 0 0 36px rgba(57, 255, 159, 0.5);
+        outline: none;
+      }
+
+      .play-btn:active {
+        transform: scale(0.98);
+      }
+
+      .menu-hint {
+        text-align: center;
+        font-size: 11px;
+        color: #b8f3ff;
+        opacity: 0.75;
+        pointer-events: none;
+      }
+
+      @media (max-width: 640px) {
+        .menu-rail {
+          width: 70px;
+          left: 8px;
+        }
+
+        .menu-play-wrap {
+          right: 8px;
+          width: min(150px, 40vw);
+        }
+
+        .play-btn {
+          padding: 16px 10px;
+          letter-spacing: 2px;
+        }
       }
 
       #hud h1 {
@@ -47,42 +241,74 @@
         opacity: 0.9;
       }
 
-      #finishOverlay {
+      #rankingPanel {
         display: none;
         position: fixed;
-        inset: 0;
+        right: 16px;
+        top: 16px;
         z-index: 3;
-        align-items: center;
-        justify-content: center;
-        background: rgba(5, 1, 20, 0.55);
-        pointer-events: none;
-      }
-
-      #finishOverlay.show {
-        display: flex;
-      }
-
-      #finishCard {
-        text-align: center;
-        color: #fff;
-        padding: 28px 40px;
+        min-width: 260px;
+        padding: 14px 16px 12px;
         border: 2px solid #ff4fd8;
-        box-shadow: 0 0 30px rgba(255, 79, 216, 0.45);
-        background: rgba(10, 4, 30, 0.85);
+        box-shadow: 0 0 24px rgba(255, 79, 216, 0.35);
+        background: rgba(10, 4, 30, 0.88);
+        color: #fff;
+        pointer-events: none;
+        user-select: none;
       }
 
-      #finishCard h2 {
+      #rankingPanel.show {
+        display: block;
+      }
+
+      #rankingPanel h2 {
         margin: 0 0 10px;
-        font-size: 42px;
-        letter-spacing: 3px;
+        font-size: 18px;
+        letter-spacing: 2px;
         color: #ff4fd8;
-        text-shadow: 0 0 16px #ff4fd8;
+        text-shadow: 0 0 10px #ff4fd8;
       }
 
-      #finishCard p {
-        margin: 0;
-        font-size: 16px;
+      .ranking-row {
+        display: grid;
+        grid-template-columns: 36px 1fr 64px;
+        gap: 8px;
+        align-items: center;
+        padding: 6px 4px;
+        font-size: 14px;
         color: #b8f3ff;
+        border-top: 1px solid rgba(184, 243, 255, 0.15);
+      }
+
+      .ranking-row.you {
+        color: #fff;
+        text-shadow: 0 0 8px #00e5ff;
+      }
+
+      .ranking-row.pending {
+        opacity: 0.45;
+      }
+
+      .ranking-row .pos {
+        font-weight: 700;
+        color: #ff4fd8;
+      }
+
+      .ranking-row .time {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      #rankingHint {
+        display: none;
+        margin: 12px 0 0;
+        font-size: 13px;
+        color: #b8f3ff;
+        text-align: center;
+      }
+
+      #rankingHint.show {
+        display: block;
       }
 
       #countdownOverlay {
@@ -109,16 +335,58 @@
         text-align: center;
       }
 
-      #countdownNumber.ready {
-        font-size: 36px;
-        letter-spacing: 2px;
-        line-height: 1.4;
-        max-width: 80vw;
+      #debugFps {
+        display: none;
+        position: fixed;
+        left: 12px;
+        bottom: 12px;
+        z-index: 20;
+        padding: 6px 10px;
+        border: 1px solid #39ff9f;
+        background: rgba(5, 1, 20, 0.85);
+        color: #39ff9f;
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: 1px;
+        pointer-events: none;
+        user-select: none;
       }
+
+      #debugFps.show {
+        display: block;
+      }
+
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="tracks/neon-circuit-1.js"></script>
+    <script src="audio.js"></script>
   </head>
   <body>
+    <div id="mainMenu" class="show">
+      <div class="menu-brand">
+        <h1>NEON RUSH</h1>
+        <p>CORRIDA FUTURISTA</p>
+      </div>
+
+      <aside class="menu-rail hit" aria-label="Opções">
+        <div class="menu-money" title="Moedas">
+          <span>MOEDAS</span>
+          <strong id="moneyLabel">0</strong>
+        </div>
+        <button type="button" class="rail-btn" disabled title="Em breve">
+          <span class="icon">▣</span>
+          Loja
+        </button>
+        <button type="button" class="rail-btn" disabled title="Em breve">
+          <span class="icon">▣</span>
+          Garagem
+        </button>
+      </aside>
+
+      <div class="menu-play-wrap hit">
+        <button type="button" class="play-btn" id="btnStartRace">JOGAR</button>
+      </div>
+    </div>
     <div id="hud">
       <h1>NEON RUSH</h1>
       <p>↑ acelerar · ↓ frear · ← → virar</p>
@@ -129,27 +397,68 @@
     <div id="countdownOverlay">
       <div id="countdownNumber">3</div>
     </div>
-    <div id="finishOverlay">
-      <div id="finishCard">
-        <h2 id="finishTitle">CHEGOU!</h2>
-        <p id="finishPlace">Você ficou em 1º</p>
-        <p id="finishTime">Tempo: 0s</p>
-        <p>Pressione R para correr de novo</p>
-      </div>
+    <div id="rankingPanel">
+      <h2>RANKING</h2>
+      <div id="rankingList"></div>
+      <p id="rankingHint">Pressione R para voltar ao menu</p>
     </div>
+    <div id="debugFps">-- FPS</div>
     <canvas id="renderCanvas"></canvas>
     <script>
       const canvas = document.getElementById("renderCanvas");
       const speedLabel = document.getElementById("speedLabel");
       const progressLabel = document.getElementById("progressLabel");
       const placeLabel = document.getElementById("placeLabel");
-      const finishOverlay = document.getElementById("finishOverlay");
-      const finishTitle = document.getElementById("finishTitle");
-      const finishPlace = document.getElementById("finishPlace");
-      const finishTime = document.getElementById("finishTime");
+      const mainMenu = document.getElementById("mainMenu");
+      const btnStartRace = document.getElementById("btnStartRace");
+      const hud = document.getElementById("hud");
+      const rankingPanel = document.getElementById("rankingPanel");
+      const rankingList = document.getElementById("rankingList");
+      const rankingHint = document.getElementById("rankingHint");
       const countdownOverlay = document.getElementById("countdownOverlay");
       const countdownNumber = document.getElementById("countdownNumber");
+      const moneyLabel = document.getElementById("moneyLabel");
+      const debugFps = document.getElementById("debugFps");
       const engine = new BABYLON.Engine(canvas, true);
+
+      const debugEnabled =
+        new URLSearchParams(window.location.search).get("debug") === "true";
+      if (debugEnabled) {
+        debugFps.classList.add("show");
+      }
+      let debugFpsFrame = 0;
+
+      // Economia: começa em 0; 1º=+11, 2º=+7, 3º=+0
+      const COIN_REWARDS = { 1: 11, 2: 7, 3: 0 };
+      const COINS_STORAGE_KEY = "neonRush.coins";
+
+      function loadCoins() {
+        const saved = localStorage.getItem(COINS_STORAGE_KEY);
+        const value = saved === null ? 0 : parseInt(saved, 10);
+        return Number.isFinite(value) && value >= 0 ? value : 0;
+      }
+
+      function saveCoins(amount) {
+        localStorage.setItem(COINS_STORAGE_KEY, String(amount));
+      }
+
+      let coins = loadCoins();
+
+      function refreshMoneyLabel() {
+        moneyLabel.textContent = String(coins);
+      }
+
+      function rewardCoinsForPlace(place) {
+        const gained = COIN_REWARDS[place] || 0;
+        if (gained > 0) {
+          coins += gained;
+          saveCoins(coins);
+          refreshMoneyLabel();
+        }
+        return gained;
+      }
+
+      refreshMoneyLabel();
 
       // Física IGUAL para jogador e rivais (sem vantagem)
       const PHYSICS = {
@@ -191,81 +500,228 @@
       }
 
       function createCar(scene, id, bodyColor, accentColor) {
+        // Carro base mais “real”: carroceria, vidros, portas e rodas
         const car = new BABYLON.TransformNode("car_" + id, scene);
 
-        const bodyMat = makeNeonMaterial("bodyMat_" + id, scene, bodyColor, 0.7);
+        const bodyMat = new BABYLON.StandardMaterial("bodyMat_" + id, scene);
+        bodyMat.diffuseColor = bodyColor.scale(0.55);
+        bodyMat.emissiveColor = bodyColor.scale(0.22);
+        bodyMat.specularColor = new BABYLON.Color3(0.35, 0.35, 0.4);
+
         const accentMat = makeNeonMaterial(
           "accentMat_" + id,
           scene,
           accentColor,
-          1
+          0.75
         );
-        const darkMat = new BABYLON.StandardMaterial("darkMat_" + id, scene);
-        darkMat.diffuseColor = new BABYLON.Color3(0.05, 0.05, 0.1);
-        darkMat.emissiveColor = new BABYLON.Color3(0.02, 0.02, 0.05);
 
+        const glassMat = new BABYLON.StandardMaterial("glassMat_" + id, scene);
+        glassMat.diffuseColor = new BABYLON.Color3(0.15, 0.25, 0.35);
+        glassMat.emissiveColor = new BABYLON.Color3(0.12, 0.28, 0.4);
+        glassMat.alpha = 0.55;
+        glassMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+        glassMat.backFaceCulling = false;
+
+        const darkMat = new BABYLON.StandardMaterial("darkMat_" + id, scene);
+        darkMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.1);
+        darkMat.emissiveColor = new BABYLON.Color3(0.02, 0.02, 0.03);
+
+        const doorMat = new BABYLON.StandardMaterial("doorMat_" + id, scene);
+        doorMat.diffuseColor = bodyColor.scale(0.4);
+        doorMat.emissiveColor = bodyColor.scale(0.12);
+
+        // Chassis / carroceria
         const body = BABYLON.MeshBuilder.CreateBox(
           "body_" + id,
-          { width: 1.6, height: 0.45, depth: 3.2 },
+          { width: 1.75, height: 0.42, depth: 3.5 },
           scene
         );
-        body.position.y = 0.45;
+        body.position.y = 0.52;
         body.material = bodyMat;
         body.parent = car;
 
-        const cabin = BABYLON.MeshBuilder.CreateBox(
-          "cabin_" + id,
-          { width: 1.2, height: 0.4, depth: 1.4 },
+        // Capô um pouco mais baixo na frente
+        const hood = BABYLON.MeshBuilder.CreateBox(
+          "hood_" + id,
+          { width: 1.55, height: 0.16, depth: 0.95 },
           scene
         );
-        cabin.position.set(0, 0.85, -0.2);
+        hood.position.set(0, 0.68, 1.15);
+        hood.material = bodyMat;
+        hood.parent = car;
+
+        // Porta-malas
+        const trunk = BABYLON.MeshBuilder.CreateBox(
+          "trunk_" + id,
+          { width: 1.55, height: 0.2, depth: 0.7 },
+          scene
+        );
+        trunk.position.set(0, 0.7, -1.35);
+        trunk.material = bodyMat;
+        trunk.parent = car;
+
+        // Cabine (estrutura)
+        const cabin = BABYLON.MeshBuilder.CreateBox(
+          "cabin_" + id,
+          { width: 1.55, height: 0.5, depth: 1.55 },
+          scene
+        );
+        cabin.position.set(0, 0.95, -0.15);
         cabin.material = darkMat;
         cabin.parent = car;
 
-        const stripe = BABYLON.MeshBuilder.CreateBox(
-          "stripe_" + id,
-          { width: 1.65, height: 0.08, depth: 3.25 },
+        // Vidros (parabrisas / laterais / traseiro)
+        const windshield = BABYLON.MeshBuilder.CreateBox(
+          "windshield_" + id,
+          { width: 1.4, height: 0.38, depth: 0.08 },
           scene
         );
-        stripe.position.y = 0.7;
-        stripe.material = accentMat;
-        stripe.parent = car;
+        windshield.position.set(0, 0.98, 0.58);
+        windshield.rotation.x = -0.35;
+        windshield.material = glassMat;
+        windshield.parent = car;
 
-        const nose = BABYLON.MeshBuilder.CreateBox(
-          "nose_" + id,
-          { width: 1.2, height: 0.2, depth: 0.8 },
+        const rearGlass = BABYLON.MeshBuilder.CreateBox(
+          "rearGlass_" + id,
+          { width: 1.35, height: 0.34, depth: 0.08 },
           scene
         );
-        nose.position.set(0, 0.35, 1.7);
-        nose.material = accentMat;
-        nose.parent = car;
+        rearGlass.position.set(0, 0.96, -0.88);
+        rearGlass.rotation.x = 0.28;
+        rearGlass.material = glassMat;
+        rearGlass.parent = car;
+
+        const sideGlassL = BABYLON.MeshBuilder.CreateBox(
+          "sideGlassL_" + id,
+          { width: 0.06, height: 0.32, depth: 1.2 },
+          scene
+        );
+        sideGlassL.position.set(-0.78, 0.98, -0.1);
+        sideGlassL.material = glassMat;
+        sideGlassL.parent = car;
+
+        const sideGlassR = sideGlassL.clone("sideGlassR_" + id);
+        sideGlassR.position.x = 0.78;
+        sideGlassR.parent = car;
+
+        // Portas (painéis laterais)
+        const doorL = BABYLON.MeshBuilder.CreateBox(
+          "doorL_" + id,
+          { width: 0.06, height: 0.36, depth: 1.15 },
+          scene
+        );
+        doorL.position.set(-0.9, 0.55, 0.05);
+        doorL.material = doorMat;
+        doorL.parent = car;
+
+        const doorR = doorL.clone("doorR_" + id);
+        doorR.position.x = 0.9;
+        doorR.parent = car;
+
+        // Maçanetas
+        const handleL = BABYLON.MeshBuilder.CreateBox(
+          "handleL_" + id,
+          { width: 0.05, height: 0.05, depth: 0.18 },
+          scene
+        );
+        handleL.position.set(-0.94, 0.58, 0.25);
+        handleL.material = accentMat;
+        handleL.parent = car;
+
+        const handleR = handleL.clone("handleR_" + id);
+        handleR.position.x = 0.94;
+        handleR.parent = car;
+
+        // Faróis
+        const headL = BABYLON.MeshBuilder.CreateBox(
+          "headL_" + id,
+          { width: 0.35, height: 0.14, depth: 0.08 },
+          scene
+        );
+        headL.position.set(-0.55, 0.5, 1.76);
+        headL.material = accentMat;
+        headL.parent = car;
+
+        const headR = headL.clone("headR_" + id);
+        headR.position.x = 0.55;
+        headR.parent = car;
+
+        // Rodas
+        function addWheel(name, x, z) {
+          const wheel = BABYLON.MeshBuilder.CreateCylinder(
+            name,
+            { diameter: 0.58, height: 0.28, tessellation: 16 },
+            scene
+          );
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(x, 0.29, z);
+          wheel.material = darkMat;
+          wheel.parent = car;
+
+          const hub = BABYLON.MeshBuilder.CreateCylinder(
+            name + "_hub",
+            { diameter: 0.22, height: 0.3, tessellation: 12 },
+            scene
+          );
+          hub.rotation.z = Math.PI / 2;
+          hub.position.set(x, 0.29, z);
+          hub.material = accentMat;
+          hub.parent = car;
+        }
+
+        addWheel("wheelFL_" + id, -0.85, 1.15);
+        addWheel("wheelFR_" + id, 0.85, 1.15);
+        addWheel("wheelBL_" + id, -0.85, -1.15);
+        addWheel("wheelBR_" + id, 0.85, -1.15);
 
         return car;
       }
 
-      function createTrackControlPoints() {
-        return [
-          new BABYLON.Vector3(0, 0, 0),
-          new BABYLON.Vector3(0, 0, 50),
-          new BABYLON.Vector3(8, 0, 100),
-          new BABYLON.Vector3(28, 0, 150),
-          new BABYLON.Vector3(35, 0, 210),
-          new BABYLON.Vector3(18, 0, 270),
-          new BABYLON.Vector3(-10, 0, 320),
-          new BABYLON.Vector3(-30, 0, 380),
-          new BABYLON.Vector3(-22, 0, 440),
-          new BABYLON.Vector3(0, 0, 500),
-          new BABYLON.Vector3(20, 0, 560),
-          new BABYLON.Vector3(12, 0, 620),
-          new BABYLON.Vector3(0, 0, 680),
-          new BABYLON.Vector3(0, 0, 740),
-        ];
+      function getActiveTrackData() {
+        const id = window.NEON_RUSH_ACTIVE_TRACK;
+        const data = window.NEON_RUSH_TRACKS && window.NEON_RUSH_TRACKS[id];
+        if (!data) {
+          throw new Error("Pista não encontrada: " + id);
+        }
+        return data;
       }
 
-      function buildPath3D() {
-        const controls = createTrackControlPoints();
+      function buildTrackFromData(trackData) {
+        const controls = trackData.controlPoints.map(function (p) {
+          return new BABYLON.Vector3(p[0], p[1], p[2]);
+        });
         const curve = BABYLON.Curve3.CreateCatmullRomSpline(controls, 25, false);
-        return new BABYLON.Path3D(curve.getPoints(), new BABYLON.Vector3(0, 1, 0));
+        const path3D = new BABYLON.Path3D(
+          curve.getPoints(),
+          new BABYLON.Vector3(0, 1, 0)
+        );
+
+        const startPos = new BABYLON.Vector3(
+          trackData.startPoint[0],
+          trackData.startPoint[1],
+          trackData.startPoint[2]
+        );
+        const finishPos = new BABYLON.Vector3(
+          trackData.finishPoint[0],
+          trackData.finishPoint[1],
+          trackData.finishPoint[2]
+        );
+
+        const startDist = path3D.getDistanceAt(
+          path3D.getClosestPositionTo(startPos)
+        );
+        const finishDist = path3D.getDistanceAt(
+          path3D.getClosestPositionTo(finishPos)
+        );
+
+        return {
+          data: trackData,
+          path3D: path3D,
+          trackLength: path3D.length(),
+          startDist: startDist,
+          finishDist: finishDist,
+          raceLength: Math.max(1, finishDist - startDist),
+        };
       }
 
       function samplePath(path3D, distance) {
@@ -279,6 +735,17 @@
           normal: path3D.getNormalAt(t).normalize(),
           binormal: path3D.getBinormalAt(t).normalize(),
         };
+      }
+
+      function distanceAlongPath(path3D, worldPos) {
+        return path3D.getDistanceAt(path3D.getClosestPositionTo(worldPos));
+      }
+
+      function raceProgressFromDistance(distAlong, track) {
+        return Math.max(
+          0,
+          Math.min(1, (distAlong - track.startDist) / track.raceLength)
+        );
       }
 
       function createRoadPiece(scene, sample, roadMat, edgeMat, index) {
@@ -367,14 +834,50 @@
         rightPost.material = cyan;
         rightPost.parent = gate;
 
-        const banner = BABYLON.MeshBuilder.CreateBox(
-          "banner",
-          { width: 14.4, height: 1.2, depth: 0.2 },
+        // Faixa com texto FINISH (frente e verso)
+        const finishTex = new BABYLON.DynamicTexture(
+          "finishText",
+          { width: 1024, height: 256 },
+          scene,
+          false
+        );
+        finishTex.hasAlpha = true;
+        const ctx = finishTex.getContext();
+        ctx.clearRect(0, 0, 1024, 256);
+        ctx.fillStyle = "#1a0428";
+        ctx.fillRect(0, 0, 1024, 256);
+        ctx.strokeStyle = "#ff4fd8";
+        ctx.lineWidth = 10;
+        ctx.strokeRect(12, 12, 1000, 232);
+        finishTex.update();
+        finishTex.drawText(
+          "FINISH",
+          null,
+          170,
+          "bold 140px Segoe UI, Arial",
+          "#b8f3ff",
+          null,
+          true
+        );
+
+        const bannerMat = new BABYLON.StandardMaterial("finishBannerMat", scene);
+        bannerMat.diffuseTexture = finishTex;
+        bannerMat.emissiveTexture = finishTex;
+        bannerMat.emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+        bannerMat.backFaceCulling = false;
+
+        const banner = BABYLON.MeshBuilder.CreatePlane(
+          "finishBanner",
+          { width: 12, height: 1.6 },
           scene
         );
-        banner.position.set(0, 5.5, 0);
-        banner.material = pink;
+        banner.position.set(0, 5.4, 0);
+        banner.material = bannerMat;
         banner.parent = gate;
+
+        const bannerBack = banner.clone("finishBannerBack");
+        bannerBack.rotation.y = Math.PI;
+        bannerBack.parent = gate;
 
         for (let i = 0; i < 8; i++) {
           const stripe = BABYLON.MeshBuilder.CreateBox(
@@ -394,22 +897,83 @@
         const height = 6 + Math.random() * 18;
         const width = 3 + Math.random() * 3;
         const depth = 3 + Math.random() * 3;
+        const group = new BABYLON.TransformNode("buildingGroup_" + id, scene);
+        group.position.copyFrom(position);
 
         const building = BABYLON.MeshBuilder.CreateBox(
           "building_" + id,
           { width, height, depth },
           scene
         );
-        building.position.copyFrom(position);
         building.position.y = height / 2;
+        building.parent = group;
 
         const color = neonColors[Math.floor(Math.random() * neonColors.length)];
         const mat = new BABYLON.StandardMaterial("buildMat_" + id, scene);
-        mat.diffuseColor = new BABYLON.Color3(0.02, 0.02, 0.06);
-        mat.emissiveColor = color.scale(0.35 + Math.random() * 0.35);
+        mat.diffuseColor = new BABYLON.Color3(0.04, 0.04, 0.08);
+        mat.emissiveColor = color.scale(0.08);
         building.material = mat;
 
-        return building;
+        const glassMat = new BABYLON.StandardMaterial("winMat_" + id, scene);
+        glassMat.diffuseColor = new BABYLON.Color3(0.1, 0.2, 0.3);
+        glassMat.emissiveColor = color.scale(0.55 + Math.random() * 0.35);
+        glassMat.alpha = 0.85;
+        glassMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+
+        const doorMat = new BABYLON.StandardMaterial("doorMat_" + id, scene);
+        doorMat.diffuseColor = new BABYLON.Color3(0.05, 0.08, 0.12);
+        doorMat.emissiveColor = new BABYLON.Color3(0.15, 0.35, 0.45);
+        doorMat.alpha = 0.9;
+        doorMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+
+        // Janelas nas 4 faces + porta de vidro na face frontal (Z+)
+        const faces = [
+          { axis: "x", sign: -1, w: depth, d: width },
+          { axis: "x", sign: 1, w: depth, d: width },
+          { axis: "z", sign: -1, w: width, d: depth },
+          { axis: "z", sign: 1, w: width, d: depth },
+        ];
+
+        let winId = 0;
+        faces.forEach(function (face, faceIndex) {
+          const cols = 2 + Math.floor(Math.random() * 2);
+          const rows = Math.max(2, Math.floor(height / 2.2));
+          const faceWidth = face.axis === "x" ? depth : width;
+          const inset = (face.axis === "x" ? width : depth) / 2 + 0.03;
+
+          for (let row = 0; row < rows; row++) {
+            for (let col = 0; col < cols; col++) {
+              const isDoor =
+                faceIndex === 3 && row === 0 && col === Math.floor(cols / 2);
+              const winW = faceWidth / (cols + 1) * 0.7;
+              const winH = isDoor ? 1.4 : 0.7;
+              const win = BABYLON.MeshBuilder.CreateBox(
+                "win_" + id + "_" + winId++,
+                {
+                  width: face.axis === "z" ? winW : 0.06,
+                  height: winH,
+                  depth: face.axis === "x" ? winW : 0.06,
+                },
+                scene
+              );
+
+              const xSpread = faceWidth * 0.55;
+              const along =
+                -xSpread / 2 + ((col + 0.5) * xSpread) / cols;
+              const y = isDoor ? winH / 2 + 0.05 : 1.6 + row * 1.8;
+
+              if (face.axis === "x") {
+                win.position.set(face.sign * inset, y, along);
+              } else {
+                win.position.set(along, y, face.sign * inset);
+              }
+              win.material = isDoor ? doorMat : glassMat;
+              win.parent = group;
+            }
+          }
+        });
+
+        return group;
       }
 
       function normalizeAngle(angle) {
@@ -444,15 +1008,25 @@
         roadMat.diffuseColor = new BABYLON.Color3(0.04, 0.04, 0.08);
         roadMat.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.07);
 
+        // Carrega o pacote de dados da pista ativa
+        const track = buildTrackFromData(getActiveTrackData());
+        const path3D = track.path3D;
+        const trackLength = track.trackLength;
+
+        const themeEdge = track.data.theme.edgeColor;
         const edgeMat = makeNeonMaterial(
           "edgeMat",
           scene,
-          new BABYLON.Color3(0.2, 0.95, 1),
+          new BABYLON.Color3(themeEdge[0], themeEdge[1], themeEdge[2]),
           1
         );
 
-        const path3D = buildPath3D();
-        const trackLength = path3D.length();
+        const themeRoad = track.data.theme.roadEmissive;
+        roadMat.emissiveColor = new BABYLON.Color3(
+          themeRoad[0],
+          themeRoad[1],
+          themeRoad[2]
+        );
 
         const step = 7;
         let pieceIndex = 0;
@@ -466,7 +1040,7 @@
           );
         }
 
-        const finishSample = samplePath(path3D, trackLength - 1);
+        const finishSample = samplePath(path3D, track.finishDist);
         createFinishLine(scene, finishSample);
 
         let buildingId = 0;
@@ -496,9 +1070,11 @@
             isPlayer,
             mesh: createCar(scene, id, bodyColor, accentColor),
             speed: 0,
-            progress: 0,
+            progress: 0, // 0..1 só no trecho de corrida (largada → chegada)
+            distAlong: 0,
             finished: false,
             finishTime: null,
+            prevFinishSide: -1,
             preferredLane: aiStyle ? aiStyle.preferredLane : 0,
             lookAhead: aiStyle ? aiStyle.lookAhead : 0,
             steerDeadzone: aiStyle ? aiStyle.steerDeadzone : 0.08,
@@ -575,9 +1151,72 @@
         camera.maxCameraSpeed = 20;
         camera.inputs.clear();
 
+        // Câmera do hub: carro no centro, girando (estilo Brawl Stars)
+        const menuCamera = new BABYLON.ArcRotateCamera(
+          "menuCam",
+          -Math.PI / 2,
+          1.15,
+          8.5,
+          player.mesh.position,
+          scene
+        );
+        menuCamera.lowerRadiusLimit = 7;
+        menuCamera.upperRadiusLimit = 11;
+        menuCamera.wheelPrecision = 40;
+        menuCamera.panningSensibility = 0;
+        menuCamera.inputs.clear();
+
+        // Âncora fixa: a FollowCamera desacelera até ela (parada suave)
+        const cameraAnchor = new BABYLON.TransformNode("cameraAnchor", scene);
+        let finishCameraLocked = false;
+
+        function lockCameraAtFinish() {
+          if (finishCameraLocked) return;
+          finishCameraLocked = true;
+          // Fixa onde o carro estava ao cruzar — a câmera ainda "chega" com suavidade
+          cameraAnchor.position.copyFrom(player.mesh.position);
+          cameraAnchor.rotation.y = player.mesh.rotation.y;
+          camera.lockedTarget = cameraAnchor;
+          camera.cameraAcceleration = 0.025;
+          camera.maxCameraSpeed = 6;
+        }
+
+        function unlockCameraFollow() {
+          finishCameraLocked = false;
+          camera.lockedTarget = player.mesh;
+          camera.cameraAcceleration = 0.05;
+          camera.maxCameraSpeed = 20;
+          camera.radius = 14;
+          camera.heightOffset = 10;
+          camera.rotationOffset = 180;
+        }
+
+        function setRivalVisibility(visible) {
+          rivalA.mesh.setEnabled(visible);
+          rivalB.mesh.setEnabled(visible);
+        }
+
+        function enterMenuCamera() {
+          placeGrid();
+          setRivalVisibility(false);
+          player.mesh.rotation.z = 0;
+          menuCamera.setTarget(player.mesh.position.add(new BABYLON.Vector3(0, 0.6, 0)));
+          menuCamera.alpha = -Math.PI / 2;
+          menuCamera.beta = 1.15;
+          menuCamera.radius = 8.5;
+          scene.activeCamera = menuCamera;
+        }
+
+        function enterRaceCamera() {
+          setRivalVisibility(true);
+          unlockCameraFollow();
+          scene.activeCamera = camera;
+        }
+
         let raceTime = 0;
         let raceOver = false;
-        let waitingForStart = false;
+        const finishOrder = [];
+        let inMenu = true;
         let countdownActive = false;
         let countdownTimer = 0;
         let countdownStep = 0; // 0=3, 1=2, 2=1
@@ -592,68 +1231,85 @@
           racer.mesh.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
           racer.mesh.rotation.z = 0;
           racer.speed = 0;
-          racer.progress = path3D.getClosestPositionTo(racer.mesh.position);
+          racer.distAlong = distanceAlongPath(path3D, racer.mesh.position);
+          racer.progress = raceProgressFromDistance(racer.distAlong, track);
           racer.finished = false;
           racer.finishTime = null;
+          // Ainda "antes" da linha de chegada
+          racer.prevFinishSide = -1;
         }
 
-        function showReadyScreen() {
-          waitingForStart = true;
+        function placeGrid() {
+          placeRacer(player, track.startDist, 0);
+          placeRacer(rivalA, track.startDist, -2.4);
+          placeRacer(rivalB, track.startDist, 2.4);
+        }
+
+        function showMainMenu() {
+          inMenu = true;
+          raceOver = false;
           countdownActive = false;
           goDisplayTimer = 0;
-          countdownNumber.classList.add("ready");
-          countdownNumber.innerHTML =
-            "Pressione qualquer tecla<br>para largar";
-          countdownOverlay.classList.add("show");
+          GameAudio.stopEngines();
+          finishOrder.length = 0;
+          rankingPanel.classList.remove("show");
+          rankingHint.classList.remove("show");
+          rankingList.innerHTML = "";
+          countdownOverlay.classList.remove("show");
+          hud.classList.remove("show");
+          mainMenu.classList.add("show");
+          progressLabel.textContent = "Progresso: 0%";
+          placeLabel.textContent = "Posição: 1º / 3";
+          speedLabel.textContent = "Velocidade: 0";
+          enterMenuCamera();
         }
 
         function startCountdown() {
-          waitingForStart = false;
           countdownActive = true;
           countdownTimer = 0;
           countdownStep = 0;
           goDisplayTimer = 0;
-          countdownNumber.classList.remove("ready");
           countdownNumber.textContent = countdownLabels[0];
           countdownOverlay.classList.add("show");
+          GameAudio.unlock();
+          GameAudio.playCountdownBeep(false);
         }
 
-        function resetRace() {
+        function startRaceFromMenu() {
+          inMenu = false;
           raceTime = 0;
           raceOver = false;
-          // Largada justa: todos alinhados na mesma linha
-          placeRacer(player, 0, 0);
-          placeRacer(rivalA, 0, -2.4);
-          placeRacer(rivalB, 0, 2.4);
-          finishOverlay.classList.remove("show");
+          mainMenu.classList.remove("show");
+          hud.classList.add("show");
+          placeGrid();
+          enterRaceCamera();
+          finishOrder.length = 0;
+          rankingPanel.classList.remove("show");
+          rankingHint.classList.remove("show");
+          rankingList.innerHTML = "";
           progressLabel.textContent = "Progresso: 0%";
           placeLabel.textContent = "Posição: 1º / 3";
           speedLabel.textContent = "Velocidade: 0";
-          showReadyScreen();
+          startCountdown();
         }
 
+        btnStartRace.addEventListener("click", function () {
+          startRaceFromMenu();
+        });
+
         window.addEventListener("keydown", (e) => {
-          if (waitingForStart) {
-            e.preventDefault();
-            startCountdown();
-            return;
-          }
           if (e.code === "KeyR" && raceOver) {
-            resetRace();
+            showMainMenu();
           }
         });
 
-        resetRace();
+        showMainMenu();
 
         function getAIInput(racer, dt) {
-          if (racer.finished) {
-            return { up: false, down: false, left: false, right: false };
-          }
-
           const t = path3D.getClosestPositionTo(racer.mesh.position);
+          // Após a chegada, ainda mira o trecho extra da pista
           const lookT = Math.min(1, t + racer.lookAhead / trackLength);
 
-          // Quão fechada é a curva à frente (0 = reta, maior = curva)
           const tanNow = path3D.getTangentAt(t).normalize();
           const tanAhead = path3D.getTangentAt(lookT).normalize();
           const bend = 1 - BABYLON.Vector3.Dot(tanNow, tanAhead);
@@ -671,40 +1327,46 @@
           const desiredYaw = Math.atan2(toTarget.x, toTarget.z);
           let yawError = normalizeAngle(desiredYaw - racer.mesh.rotation.y);
 
-          // Erros curtos de direção (hesitação / correção atrasada)
-          if (racer.mistakeTimer > 0) {
-            racer.mistakeTimer -= dt;
-            yawError *= -0.35; // vira um pouco para o lado errado
-          } else if (Math.random() < racer.mistakeChance) {
-            racer.mistakeTimer = 0.2 + Math.random() * 0.25;
+          if (!racer.finished) {
+            if (racer.mistakeTimer > 0) {
+              racer.mistakeTimer -= dt;
+              yawError *= -0.35;
+            } else if (Math.random() < racer.mistakeChance) {
+              racer.mistakeTimer = 0.2 + Math.random() * 0.25;
+            }
           }
 
-          let left = yawError < -racer.steerDeadzone;
-          let right = yawError > racer.steerDeadzone;
+          const left = yawError < -racer.steerDeadzone;
+          const right = yawError > racer.steerDeadzone;
 
-          // Alivia acelerador nas curvas ou quando está desalinhado
           const sharpCurve = bend > racer.curveCaution;
           const badlyAligned = Math.abs(yawError) > 0.55;
-          const up = !sharpCurve && !badlyAligned;
-          const down = sharpCurve && bend > racer.curveCaution + 0.08;
+          // Depois da chegada: só desacelera (sem acelerar)
+          const up = !racer.finished && !sharpCurve && !badlyAligned;
+          const down =
+            !racer.finished &&
+            sharpCurve &&
+            bend > racer.curveCaution + 0.08;
 
           return { up, down, left, right };
         }
 
         function applyDrive(racer, input, dt) {
-          if (racer.finished) {
-            racer.speed = 0;
-            return;
-          }
+          // Após cruzar a chegada: não acelera mais, só desacelera e pode virar
+          const coasting = racer.finished;
+          const throttleUp = !coasting && input.up;
+          const throttleDown = !coasting && input.down;
 
-          // Mesma aceleração / freio / atrito do jogador
-          if (input.up) {
+          if (throttleUp) {
             racer.speed += PHYSICS.accel * dt;
-          } else if (input.down) {
+          } else if (throttleDown) {
             racer.speed -= PHYSICS.brake * dt;
           } else {
-            if (racer.speed > 0) racer.speed -= PHYSICS.friction * dt;
-            else if (racer.speed < 0) racer.speed += PHYSICS.friction * dt;
+            const friction = coasting
+              ? PHYSICS.friction * 2.4
+              : PHYSICS.friction;
+            if (racer.speed > 0) racer.speed -= friction * dt;
+            else if (racer.speed < 0) racer.speed += friction * dt;
             if (Math.abs(racer.speed) < 0.2) racer.speed = 0;
           }
 
@@ -744,18 +1406,32 @@
             racer.speed *= 0.97;
           }
 
-          racer.progress = path3D.getClosestPositionTo(racer.mesh.position);
-
-          const distToFinish = BABYLON.Vector3.Distance(
-            racer.mesh.position,
-            finishSample.position
-          );
-          if (racer.progress > 0.97 && distToFinish < 10) {
-            racer.finished = true;
-            racer.finishTime = raceTime;
-            racer.speed = 0;
+          racer.distAlong = distanceAlongPath(path3D, racer.mesh.position);
+          if (!racer.finished) {
+            racer.progress = raceProgressFromDistance(racer.distAlong, track);
+          } else {
             racer.progress = 1;
           }
+
+          // Só marca chegada ao CRUZAR a linha (sem congelar a velocidade)
+          const toFinish = racer.mesh.position.subtract(finishSample.position);
+          const finishSide = BABYLON.Vector3.Dot(toFinish, finishSample.tangent);
+          const nearFinish = racer.distAlong > track.finishDist - 35;
+
+          if (
+            !racer.finished &&
+            nearFinish &&
+            racer.prevFinishSide < 0 &&
+            finishSide >= 0
+          ) {
+            racer.finished = true;
+            racer.finishTime = raceTime;
+            racer.progress = 1;
+            finishOrder.push(racer);
+            GameAudio.playFinish(racer.isPlayer);
+            updateRankingPanel();
+          }
+          racer.prevFinishSide = finishSide;
         }
 
         function getPlayerPlace() {
@@ -773,32 +1449,95 @@
           return place;
         }
 
+        function allRacersFinished() {
+          return racers.every(function (racer) {
+            return racer.finished;
+          });
+        }
+
         function placeText(place) {
           return place + "º";
+        }
+
+        function updateRankingPanel() {
+          rankingPanel.classList.add("show");
+          rankingList.innerHTML = "";
+
+          finishOrder.forEach(function (racer, index) {
+            const row = document.createElement("div");
+            row.className = "ranking-row" + (racer.isPlayer ? " you" : "");
+            row.innerHTML =
+              '<span class="pos">' +
+              placeText(index + 1) +
+              "</span>" +
+              "<span>" +
+              racer.name +
+              "</span>" +
+              '<span class="time">' +
+              racer.finishTime.toFixed(1) +
+              "s</span>";
+            rankingList.appendChild(row);
+          });
+
+          racers.forEach(function (racer) {
+            if (racer.finished) return;
+            const row = document.createElement("div");
+            row.className =
+              "ranking-row pending" + (racer.isPlayer ? " you" : "");
+            row.innerHTML =
+              '<span class="pos">—</span>' +
+              "<span>" +
+              racer.name +
+              "</span>" +
+              '<span class="time">...</span>';
+            rankingList.appendChild(row);
+          });
+
+          if (allRacersFinished() && !raceOver) {
+            raceOver = true;
+            const finalPlace = getPlayerPlace();
+            const gained = rewardCoinsForPlace(finalPlace);
+            progressLabel.textContent = "Progresso: 100%";
+            placeLabel.textContent =
+              "Posição: " + placeText(finalPlace) + " / 3";
+            rankingHint.textContent =
+              gained > 0
+                ? "+" +
+                  gained +
+                  " moedas! Pressione R para voltar ao menu"
+                : "Sem moedas desta vez. Pressione R para voltar ao menu";
+            rankingHint.classList.add("show");
+          }
         }
 
         scene.onBeforeRenderObservable.add(() => {
           const dt = engine.getDeltaTime() / 1000;
 
-          if (raceOver) {
-            speedLabel.textContent = "Velocidade: 0";
+          // Hub: carro no centro girando + câmera orbitando
+          if (inMenu) {
+            GameAudio.stopEngines();
+            player.mesh.rotation.y += dt * 0.55;
+            menuCamera.alpha += dt * 0.22;
+            menuCamera.setTarget(
+              player.mesh.position.add(new BABYLON.Vector3(0, 0.6, 0))
+            );
             return;
           }
 
-          // Esperando tecla ou contagem: ninguém anda
-          if (waitingForStart || countdownActive) {
-            if (countdownActive) {
-              countdownTimer += dt;
-              if (countdownTimer >= 1) {
-                countdownTimer = 0;
-                countdownStep += 1;
-                if (countdownStep >= countdownLabels.length) {
-                  countdownActive = false;
-                  countdownNumber.textContent = "VAI!";
-                  goDisplayTimer = 0.7;
-                } else {
-                  countdownNumber.textContent = countdownLabels[countdownStep];
-                }
+          // Contagem: ninguém anda
+          if (countdownActive) {
+            countdownTimer += dt;
+            if (countdownTimer >= 1) {
+              countdownTimer = 0;
+              countdownStep += 1;
+              if (countdownStep >= countdownLabels.length) {
+                countdownActive = false;
+                countdownNumber.textContent = "VAI!";
+                goDisplayTimer = 0.7;
+                GameAudio.playCountdownBeep(true);
+              } else {
+                countdownNumber.textContent = countdownLabels[countdownStep];
+                GameAudio.playCountdownBeep(false);
               }
             }
             return;
@@ -811,34 +1550,51 @@
             }
           }
 
-          raceTime += dt;
+          if (!raceOver) {
+            raceTime += dt;
+          }
 
-          applyDrive(player, keys, dt);
+          // Depois da chegada o jogador só desacelera (ainda pode virar)
+          const playerInput = player.finished
+            ? { up: false, down: false, left: keys.left, right: keys.right }
+            : keys;
+
+          applyDrive(player, playerInput, dt);
           applyDrive(rivalA, getAIInput(rivalA, dt), dt);
           applyDrive(rivalB, getAIInput(rivalB, dt), dt);
 
-          const place = getPlayerPlace();
-          placeLabel.textContent = "Posição: " + placeText(place) + " / 3";
+          // Motores dos 3 carros (rivais mais baixos quando longe)
+          GameAudio.setEngineSpeed("player", player.speed, PHYSICS.maxSpeed);
+          GameAudio.setEngineSpeed(
+            "rivalA",
+            rivalA.speed,
+            PHYSICS.maxSpeed,
+            BABYLON.Vector3.Distance(player.mesh.position, rivalA.mesh.position)
+          );
+          GameAudio.setEngineSpeed(
+            "rivalB",
+            rivalB.speed,
+            PHYSICS.maxSpeed,
+            BABYLON.Vector3.Distance(player.mesh.position, rivalB.mesh.position)
+          );
 
-          const progress = Math.floor(player.progress * 100);
-          speedLabel.textContent =
-            "Velocidade: " + Math.round(Math.abs(player.speed));
-          if (!player.finished) {
-            progressLabel.textContent =
-              "Progresso: " + Math.max(0, Math.min(99, progress)) + "%";
+          // Câmera desacelera e assenta na chegada (sem salto brusco)
+          if (player.finished) {
+            lockCameraAtFinish();
           }
 
-          if (player.finished) {
-            raceOver = true;
-            const finalPlace = getPlayerPlace();
-            progressLabel.textContent = "Progresso: 100%";
-            placeLabel.textContent = "Posição: " + placeText(finalPlace) + " / 3";
-            finishTitle.textContent =
-              finalPlace === 1 ? "VENCEU!" : "CHEGOU!";
-            finishPlace.textContent =
-              "Você ficou em " + placeText(finalPlace);
-            finishTime.textContent = "Tempo: " + raceTime.toFixed(1) + "s";
-            finishOverlay.classList.add("show");
+          const place = getPlayerPlace();
+          placeLabel.textContent = "Posição: " + placeText(place) + " / 3";
+          speedLabel.textContent =
+            "Velocidade: " + Math.round(Math.abs(player.speed));
+
+          if (!player.finished) {
+            const progress = Math.floor(player.progress * 100);
+            progressLabel.textContent =
+              "Progresso: " + Math.max(0, Math.min(99, progress)) + "%";
+          } else if (!raceOver) {
+            progressLabel.textContent =
+              "Chegou! Aguardando os outros...";
           }
         });
 
@@ -849,6 +1605,13 @@
 
       engine.runRenderLoop(function () {
         scene.render();
+        if (debugEnabled) {
+          debugFpsFrame += 1;
+          // Atualiza o DOM de tempos em tempos para não pesar o FPS
+          if (debugFpsFrame % 15 === 0) {
+            debugFps.textContent = Math.round(engine.getFps()) + " FPS";
+          }
+        }
       });
 
       window.addEventListener("resize", function () {
