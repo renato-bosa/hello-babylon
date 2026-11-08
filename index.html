@@ -596,7 +596,7 @@
         right: 16px;
         top: 16px;
         z-index: 3;
-        min-width: 260px;
+        min-width: 280px;
         padding: 14px 16px 12px;
         border: 2px solid #ff4fd8;
         box-shadow: 0 0 24px rgba(255, 79, 216, 0.35);
@@ -604,10 +604,25 @@
         color: #fff;
         pointer-events: none;
         user-select: none;
+        transform: translate(0, 0);
+        transition:
+          right 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+          top 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+          transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+          min-width 0.55s ease,
+          box-shadow 0.55s ease;
       }
 
       #rankingPanel.show {
         display: block;
+      }
+
+      #rankingPanel.centered {
+        top: 50%;
+        right: 50%;
+        min-width: min(360px, 86vw);
+        transform: translate(50%, -50%);
+        box-shadow: 0 0 40px rgba(255, 79, 216, 0.45);
       }
 
       #rankingPanel h2 {
@@ -654,6 +669,7 @@
         font-size: 13px;
         color: #b8f3ff;
         text-align: center;
+        line-height: 1.55;
       }
 
       #rankingHint.show {
@@ -853,7 +869,7 @@
     <div id="rankingPanel">
       <h2>RANKING</h2>
       <div id="rankingList"></div>
-      <p id="rankingHint">Pressione R para voltar ao menu</p>
+      <p id="rankingHint">Pressione Enter ou Espaço para voltar ao menu</p>
     </div>
     <div id="debugFps">-- FPS</div>
     <canvas id="renderCanvas"></canvas>
@@ -911,6 +927,9 @@
             : name;
       }
 
+      // Preenchido por createScene — troca a pista sem reload (Simple Browser do Cursor)
+      let switchTrackInScene = null;
+
       function stepActiveTrack(delta) {
         const ids = getTrackIds();
         if (ids.length < 2) {
@@ -923,9 +942,24 @@
         let idx = ids.indexOf(current);
         if (idx < 0) idx = 0;
         idx = (idx + delta + ids.length) % ids.length;
-        localStorage.setItem(TRACK_STORAGE_KEY, ids[idx]);
-        // A pista é montada na carga — recarrega para aplicar
-        window.location.reload();
+        const nextId = ids[idx];
+        localStorage.setItem(TRACK_STORAGE_KEY, nextId);
+        window.NEON_RUSH_ACTIVE_TRACK = nextId;
+
+        if (typeof switchTrackInScene === "function") {
+          const ok = switchTrackInScene(nextId);
+          if (ok) {
+            refreshTrackLabel();
+            return;
+          }
+        }
+
+        // Fallback se a cena ainda não estiver pronta
+        try {
+          window.location.reload();
+        } catch (err) {
+          refreshTrackLabel();
+        }
       }
 
       function setCanvasInteractive(enabled) {
@@ -2672,32 +2706,35 @@
         return group;
       }
 
+      let finishLineSerial = 0;
+
       function createFinishLine(scene, sample) {
-        const gate = new BABYLON.TransformNode("finishGate", scene);
+        const sid = finishLineSerial++;
+        const gate = new BABYLON.TransformNode("finishGate_" + sid, scene);
         gate.position.copyFrom(sample.position);
         gate.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
 
         const pink = makeNeonMaterial(
-          "finishPink",
+          "finishPink_" + sid,
           scene,
           new BABYLON.Color3(1, 0.2, 0.85),
           1
         );
         const cyan = makeNeonMaterial(
-          "finishCyan",
+          "finishCyan_" + sid,
           scene,
           new BABYLON.Color3(0.2, 0.95, 1),
           1
         );
         const white = makeNeonMaterial(
-          "finishWhite",
+          "finishWhite_" + sid,
           scene,
           new BABYLON.Color3(1, 1, 1),
           0.9
         );
 
         const leftPost = BABYLON.MeshBuilder.CreateBox(
-          "leftPost",
+          "leftPost_" + sid,
           { width: 0.4, height: 6, depth: 0.4 },
           scene
         );
@@ -2706,7 +2743,7 @@
         leftPost.parent = gate;
 
         const rightPost = BABYLON.MeshBuilder.CreateBox(
-          "rightPost",
+          "rightPost_" + sid,
           { width: 0.4, height: 6, depth: 0.4 },
           scene
         );
@@ -2716,7 +2753,7 @@
 
         // Faixa com texto FINISH (frente e verso)
         const finishTex = new BABYLON.DynamicTexture(
-          "finishText",
+          "finishText_" + sid,
           { width: 1024, height: 256 },
           scene,
           false
@@ -2740,7 +2777,10 @@
           true
         );
 
-        const bannerMat = new BABYLON.StandardMaterial("finishBannerMat", scene);
+        const bannerMat = new BABYLON.StandardMaterial(
+          "finishBannerMat_" + sid,
+          scene
+        );
         bannerMat.diffuseTexture = finishTex;
         bannerMat.emissiveTexture = finishTex;
         bannerMat.emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7);
@@ -2748,7 +2788,7 @@
         bannerMat.backFaceCulling = false;
 
         const banner = BABYLON.MeshBuilder.CreatePlane(
-          "finishBanner",
+          "finishBanner_" + sid,
           { width: 12, height: 1.6 },
           scene
         );
@@ -2758,7 +2798,7 @@
 
         for (let i = 0; i < 8; i++) {
           const stripe = BABYLON.MeshBuilder.CreateBox(
-            "finishStripe_" + i,
+            "finishStripe_" + sid + "_" + i,
             { width: 1.6, height: 0.06, depth: 1.2 },
             scene
           );
@@ -2901,10 +2941,11 @@
         roadMat.diffuseColor = new BABYLON.Color3(0.04, 0.04, 0.08);
         roadMat.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.07);
 
-        // Carrega o pacote de dados da pista ativa
-        const track = buildTrackFromData(getActiveTrackData());
-        const path3D = track.path3D;
-        const trackLength = track.trackLength;
+        // Carrega o pacote de dados da pista ativa (mutável p/ trocar sem reload)
+        let track = buildTrackFromData(getActiveTrackData());
+        let path3D = track.path3D;
+        let trackLength = track.trackLength;
+        let finishSample = samplePath(path3D, track.finishDist);
 
         const themeEdge = track.data.theme.edgeColor;
         const edgeMat = makeNeonMaterial(
@@ -2925,44 +2966,72 @@
         const buildingGroups = [];
         let finishGate = null;
 
-        const step = 7;
-        let pieceIndex = 0;
-        for (let d = 0; d < trackLength; d += step) {
-          roadPieces.push(
-            createRoadPiece(
-              scene,
-              samplePath(path3D, d),
-              roadMat,
-              edgeMat,
-              pieceIndex++
-            )
-          );
+        function clearTrackWorld() {
+          while (roadPieces.length) {
+            const piece = roadPieces.pop();
+            if (piece) piece.dispose();
+          }
+          while (buildingGroups.length) {
+            const group = buildingGroups.pop();
+            if (group) group.dispose();
+          }
+          if (finishGate) {
+            finishGate.dispose();
+            finishGate = null;
+          }
         }
 
-        const finishSample = samplePath(path3D, track.finishDist);
-        finishGate = createFinishLine(scene, finishSample);
+        function buildTrackWorld() {
+          const step = 7;
+          let pieceIndex = 0;
+          for (let d = 0; d < trackLength; d += step) {
+            roadPieces.push(
+              createRoadPiece(
+                scene,
+                samplePath(path3D, d),
+                roadMat,
+                edgeMat,
+                pieceIndex++
+              )
+            );
+          }
 
-        let buildingId = 0;
-        for (let d = 10; d < trackLength; d += 14) {
-          const sample = samplePath(path3D, d);
-          const side = sample.binormal;
-          buildingGroups.push(
-            createBuilding(
-              scene,
-              sample.position.add(side.scale(-(12 + Math.random() * 8))),
-              neonColors,
-              buildingId++
-            )
-          );
-          buildingGroups.push(
-            createBuilding(
-              scene,
-              sample.position.add(side.scale(12 + Math.random() * 8)),
-              neonColors,
-              buildingId++
-            )
-          );
+          finishSample = samplePath(path3D, track.finishDist);
+          finishGate = createFinishLine(scene, finishSample);
+
+          let buildingId = 0;
+          for (let d = 10; d < trackLength; d += 14) {
+            const sample = samplePath(path3D, d);
+            const side = sample.binormal;
+            buildingGroups.push(
+              createBuilding(
+                scene,
+                sample.position.add(side.scale(-(12 + Math.random() * 8))),
+                neonColors,
+                buildingId++
+              )
+            );
+            buildingGroups.push(
+              createBuilding(
+                scene,
+                sample.position.add(side.scale(12 + Math.random() * 8)),
+                neonColors,
+                buildingId++
+              )
+            );
+          }
         }
+
+        function applyTrackTheme(trackData) {
+          const edge = trackData.theme.edgeColor;
+          const edgeColor = new BABYLON.Color3(edge[0], edge[1], edge[2]);
+          edgeMat.diffuseColor = edgeColor.scale(0.25);
+          edgeMat.emissiveColor = edgeColor.scale(1);
+          const road = trackData.theme.roadEmissive;
+          roadMat.emissiveColor = new BABYLON.Color3(road[0], road[1], road[2]);
+        }
+
+        buildTrackWorld();
 
         // --- Pilotos ---
         // Opção C: mesma física, mas IA humana (alivia curva + erra direção)
@@ -3637,7 +3706,7 @@
           GameAudio.stopEngines();
           player.maxSpeed = PHYSICS.maxSpeed;
           finishOrder.length = 0;
-          rankingPanel.classList.remove("show");
+          rankingPanel.classList.remove("show", "centered");
           rankingHint.classList.remove("show");
           rankingList.innerHTML = "";
           countdownOverlay.classList.remove("show");
@@ -3689,7 +3758,7 @@
           placeGrid();
           enterRaceCamera();
           finishOrder.length = 0;
-          rankingPanel.classList.remove("show");
+          rankingPanel.classList.remove("show", "centered");
           rankingHint.classList.remove("show");
           rankingList.innerHTML = "";
           progressLabel.textContent = "Progresso: 0%";
@@ -3763,7 +3832,11 @@
           });
 
         window.addEventListener("keydown", (e) => {
-          if (e.code === "KeyR" && raceOver) {
+          if (
+            raceOver &&
+            (e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space")
+          ) {
+            e.preventDefault();
             showMainMenu();
             return;
           }
@@ -4013,9 +4086,14 @@
             } else if (!didWin) {
               hint = "Sem moedas desta vez. ";
             }
-            rankingHint.textContent =
-              hint + "Pressione R para voltar ao menu";
+            rankingHint.innerHTML =
+              hint.trim() +
+              "<br>Pressione Enter ou Espaço para voltar ao menu";
             rankingHint.classList.add("show");
+            // Desliza o quadro do canto para o centro
+            requestAnimationFrame(function () {
+              rankingPanel.classList.add("centered");
+            });
           }
         }
 
@@ -4236,6 +4314,26 @@
               "Chegou! Aguardando os outros...";
           }
         });
+
+        switchTrackInScene = function (trackId) {
+          if (!inMenu || perfTestRunning || countdownActive) return false;
+          if (!window.NEON_RUSH_TRACKS || !window.NEON_RUSH_TRACKS[trackId]) {
+            return false;
+          }
+
+          closeGarage({ restoreCar: true });
+          closeShop({ restoreCar: true });
+
+          clearTrackWorld();
+          track = buildTrackFromData(window.NEON_RUSH_TRACKS[trackId]);
+          path3D = track.path3D;
+          trackLength = track.trackLength;
+          applyTrackTheme(track.data);
+          buildTrackWorld();
+          placeGrid();
+          enterMenuCamera();
+          return true;
+        };
 
         return scene;
       };
