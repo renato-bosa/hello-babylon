@@ -777,6 +777,7 @@
     <script src="tracks/sunset-rush.js"></script>
     <script src="tracks/tunnel-rush.js"></script>
     <script src="tracks/praia-rush.js"></script>
+    <script src="tracks/natal-race.js"></script>
     <script src="cars/catalog.js"></script>
     <script src="audio.js"></script>
   </head>
@@ -3321,6 +3322,93 @@
         return group;
       }
 
+      function createPineTree(scene, position, id) {
+        const group = new BABYLON.TransformNode("pine_" + id, scene);
+        group.position.copyFrom(position);
+
+        const trunkMat = new BABYLON.StandardMaterial("pineTrunk_" + id, scene);
+        trunkMat.diffuseColor = new BABYLON.Color3(0.28, 0.16, 0.08);
+        trunkMat.emissiveColor = new BABYLON.Color3(0.06, 0.03, 0.02);
+
+        const leafMat = makeNeonMaterial(
+          "pineLeaf_" + id,
+          scene,
+          new BABYLON.Color3(0.12, 0.55, 0.22),
+          0.45
+        );
+        const ornamentMat = makeNeonMaterial(
+          "pineOrnament_" + id,
+          scene,
+          id % 2 === 0
+            ? new BABYLON.Color3(1, 0.2, 0.25)
+            : new BABYLON.Color3(1, 0.85, 0.2),
+          0.9
+        );
+
+        const trunk = BABYLON.MeshBuilder.CreateCylinder(
+          "pineTrunkMesh_" + id,
+          { diameter: 0.35, height: 1.4, tessellation: 8 },
+          scene
+        );
+        trunk.position.y = 0.7;
+        trunk.material = trunkMat;
+        trunk.parent = group;
+
+        // Copas em camadas (barato e legível)
+        const layers = [
+          { y: 2.0, d: 2.4 },
+          { y: 3.1, d: 1.8 },
+          { y: 4.0, d: 1.2 },
+        ];
+        layers.forEach(function (layer, i) {
+          const cone = BABYLON.MeshBuilder.CreateCylinder(
+            "pineCone_" + id + "_" + i,
+            {
+              diameterTop: 0.05,
+              diameterBottom: layer.d,
+              height: 1.35,
+              tessellation: 10,
+            },
+            scene
+          );
+          cone.position.y = layer.y;
+          cone.material = leafMat;
+          cone.parent = group;
+        });
+
+        const star = BABYLON.MeshBuilder.CreateSphere(
+          "pineStar_" + id,
+          { diameter: 0.28, segments: 6 },
+          scene
+        );
+        star.position.y = 4.75;
+        star.material = ornamentMat;
+        star.parent = group;
+
+        return group;
+      }
+
+      function createSnowSidewalk(scene, sample, side, snowMat, index) {
+        const group = new BABYLON.TransformNode(
+          "snowWalk_" + index,
+          scene
+        );
+        group.position.copyFrom(sample.position);
+        group.rotation.y = yawFromTangent(sample.tangent);
+        group.rotation.x = pitchFromTangent(sample.tangent);
+
+        const snow = BABYLON.MeshBuilder.CreateGround(
+          "snowPad_" + index,
+          { width: 5.5, height: 8 },
+          scene
+        );
+        // Fora da pista, perto dos prédios/pinheiros
+        snow.position.set(side * 10.2, 0.02, 0);
+        snow.material = snowMat;
+        snow.parent = group;
+        return group;
+      }
+
       function normalizeAngle(angle) {
         while (angle > Math.PI) angle -= Math.PI * 2;
         while (angle < -Math.PI) angle += Math.PI * 2;
@@ -3357,6 +3445,11 @@
         sandMat.diffuseColor = new BABYLON.Color3(0.72, 0.58, 0.32);
         sandMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.06);
         sandMat.specularColor = new BABYLON.Color3(0.08, 0.07, 0.04);
+
+        const snowMat = new BABYLON.StandardMaterial("snowMat", scene);
+        snowMat.diffuseColor = new BABYLON.Color3(0.85, 0.9, 0.98);
+        snowMat.emissiveColor = new BABYLON.Color3(0.35, 0.4, 0.5);
+        snowMat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.25);
 
         const tapeMatA = makeNeonMaterial(
           "tapeMatA",
@@ -3543,8 +3636,13 @@
             return;
           }
 
+          const isChristmas = !!features.christmas;
+          // Natal: menos props e mais espaçados (prédio / pinheiro)
+          const sceneryStep = isChristmas ? 20 : 14;
           let buildingId = 0;
-          for (let d = 10; d < trackLength; d += 14) {
+          let sceneryIndex = 0;
+
+          for (let d = 10; d < trackLength; d += sceneryStep) {
             if (
               tunnel &&
               d >= tunnel.startDist - 6 &&
@@ -3554,22 +3652,34 @@
             }
             const sample = samplePath(path3D, d);
             const side = sample.binormal;
-            buildingGroups.push(
-              createBuilding(
-                scene,
-                sample.position.add(side.scale(-(12 + Math.random() * 8))),
-                neonColors,
-                buildingId++
-              )
-            );
-            buildingGroups.push(
-              createBuilding(
-                scene,
-                sample.position.add(side.scale(12 + Math.random() * 8)),
-                neonColors,
-                buildingId++
-              )
-            );
+
+            if (isChristmas) {
+              beachProps.push(
+                createSnowSidewalk(scene, sample, -1, snowMat, sceneryIndex)
+              );
+              beachProps.push(
+                createSnowSidewalk(scene, sample, 1, snowMat, sceneryIndex + 10000)
+              );
+            }
+
+            // Ao longo da pista: prédio, pinheiro, prédio, pinheiro...
+            const usePine =
+              isChristmas &&
+              Math.floor((d - 10) / sceneryStep) % 2 === 1;
+
+            [-1, 1].forEach(function (dir) {
+              const pos = sample.position.add(
+                side.scale(dir * (12 + Math.random() * 6))
+              );
+              if (usePine) {
+                buildingGroups.push(createPineTree(scene, pos, buildingId++));
+              } else {
+                buildingGroups.push(
+                  createBuilding(scene, pos, neonColors, buildingId++)
+                );
+              }
+            });
+            sceneryIndex += 1;
           }
         }
 
@@ -3656,10 +3766,6 @@
             wobbleSpeed: 1.7,
             wobblePhase: 0.4,
             mistakeChance: 0.012,
-          },
-          {
-            body: new BABYLON.Color3(1, 0.35, 0.15),
-            accent: new BABYLON.Color3(1, 0.85, 0.2),
           }
         );
 
@@ -3677,14 +3783,86 @@
             wobbleSpeed: 1.2,
             wobblePhase: 2.1,
             mistakeChance: 0.008,
-          },
-          {
-            body: new BABYLON.Color3(0.55, 0.25, 1),
-            accent: new BABYLON.Color3(0.3, 1, 0.7),
           }
         );
 
         const racers = [player, rivalA, rivalB];
+
+        // Bots: qualquer carro do catálogo, com peso por raridade
+        const BOT_RARITY_WEIGHTS = {
+          common: 70,
+          epic: 22,
+          legendary: 8,
+        };
+
+        function pickBotCarId(excludeIds) {
+          const exclude = excludeIds || [];
+          const byRarity = { common: [], epic: [], legendary: [] };
+          Object.keys(window.NEON_RUSH_CARS || {}).forEach(function (id) {
+            if (exclude.indexOf(id) !== -1) return;
+            const car = window.NEON_RUSH_CARS[id];
+            if (byRarity[car.rarity]) byRarity[car.rarity].push(id);
+          });
+
+          const options = Object.keys(BOT_RARITY_WEIGHTS)
+            .map(function (rarity) {
+              return {
+                rarity: rarity,
+                weight: BOT_RARITY_WEIGHTS[rarity],
+                pool: byRarity[rarity],
+              };
+            })
+            .filter(function (row) {
+              return row.pool.length > 0;
+            });
+
+          if (!options.length) {
+            return window.NEON_RUSH_DEFAULT_CAR || "starter";
+          }
+
+          let total = 0;
+          options.forEach(function (row) {
+            total += row.weight;
+          });
+          let roll = Math.random() * total;
+          let chosen = options[0];
+          for (let i = 0; i < options.length; i++) {
+            roll -= options[i].weight;
+            if (roll <= 0) {
+              chosen = options[i];
+              break;
+            }
+          }
+          return chosen.pool[Math.floor(Math.random() * chosen.pool.length)];
+        }
+
+        function rebuildRivalCar(racer, carId) {
+          const old = racer.mesh;
+          const wasEnabled = old.isEnabled();
+          const rotY = old.rotation.y;
+          const pos = old.position.clone();
+          old.dispose();
+          const def = getCarDef(carId);
+          racer.carModelId = carId;
+          racer.mesh = createCarByModel(
+            scene,
+            def.model,
+            racer.id,
+            BABYLON.Color3.FromArray(def.bodyColor),
+            BABYLON.Color3.FromArray(def.accentColor)
+          );
+          racer.mesh.position.copyFrom(pos);
+          racer.mesh.rotation.y = rotY;
+          racer.mesh.setEnabled(wasEnabled);
+        }
+
+        function assignBotCarsForRace() {
+          const carA = pickBotCarId();
+          let carB = pickBotCarId([carA]);
+          if (!carB) carB = pickBotCarId();
+          rebuildRivalCar(rivalA, carA);
+          rebuildRivalCar(rivalB, carB);
+        }
 
         let garagePreviewId = null;
         let garageOpen = false;
@@ -4296,6 +4474,9 @@
           if (player.carModelId !== equippedCarId) {
             rebuildPlayerCar(equippedCarId, { saveEquip: true });
           }
+          // Nova e Echo escolhem carro do catálogo (comuns mais comuns)
+          assignBotCarsForRace();
+
           // Pneu calibrado: só o jogador, só nesta corrida
           if (hasPendingCalibratedTire()) {
             player.maxSpeed = CALIBRATED_TIRE_MAX_SPEED;
