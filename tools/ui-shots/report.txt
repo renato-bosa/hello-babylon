@@ -1,0 +1,18 @@
+OK: Hub principal
+OK: Botão JOGAR
+OK: Trocar pista
+OK: Garagem
+OK: Loja
+OK: Moedas
+OK: Contador de carros
+OK: Vitórias
+INFO: pista atual = Neon Circuit 1 (1/2)
+OK: Painel da garagem
+OK: Seta garagem anterior
+OK: Seta garagem próxima
+OK: Nome do carro na garagem
+OK: Painel da loja
+OK: Botão Comprar
+OK: Nome da oferta
+INFO: oferta da loja = Egg Car
+OK: troca de pista (Neon Circuit 1 (1/2) -> Sunset Rush (2/2))

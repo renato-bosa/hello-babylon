@@ -205,7 +205,9 @@
       }
 
       .rail-btn:hover:not(:disabled),
-      .rail-btn:focus-visible:not(:disabled) {
+      .rail-btn:focus-visible:not(:disabled),
+      #mainMenu.garage-open #btnGarage,
+      #mainMenu.shop-open #btnShop {
         background: rgba(0, 229, 255, 0.18);
         box-shadow: 0 0 16px rgba(0, 229, 255, 0.3);
         outline: none;
@@ -439,8 +441,9 @@
         color: #fff;
       }
 
+      /* Fora do menu-rail (left 14px + width 86px) para não sobrepor moedas/stats */
       .garage-nav.prev {
-        left: max(16px, 4vw);
+        left: calc(14px + 86px + 14px);
       }
 
       .garage-nav.next {
@@ -568,7 +571,7 @@
         }
 
         .garage-nav.prev {
-          left: 8px;
+          left: calc(8px + 70px + 10px);
         }
 
         .garage-nav.next {
