@@ -16,10 +16,19 @@
       }
 
       #renderCanvas {
+        position: fixed;
+        inset: 0;
         width: 100%;
         height: 100%;
         touch-action: none;
         display: block;
+        z-index: 0;
+        /* No hub o menu precisa receber o clique; na corrida reativamos */
+        pointer-events: none;
+      }
+
+      #renderCanvas.racing {
+        pointer-events: auto;
       }
 
       #hud {
@@ -261,6 +270,51 @@
         margin: 0;
         letter-spacing: 1px;
         text-shadow: 0 0 8px currentColor;
+      }
+
+      .track-picker {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        width: 100%;
+        position: relative;
+        z-index: 2;
+      }
+
+      .track-switch-btn {
+        appearance: none;
+        width: 100%;
+        border: 2px solid #ff4fd8;
+        background: rgba(255, 79, 216, 0.18);
+        color: #ffe3f8;
+        cursor: pointer;
+        padding: 12px 10px;
+        text-align: center;
+        box-shadow: 0 0 16px rgba(255, 79, 216, 0.25);
+      }
+
+      .track-switch-btn:hover,
+      .track-switch-btn:focus-visible {
+        background: rgba(255, 79, 216, 0.32);
+        outline: none;
+      }
+
+      .track-switch-btn:active {
+        transform: scale(0.98);
+      }
+
+      .track-switch-btn small {
+        display: block;
+        font-size: 10px;
+        letter-spacing: 1px;
+        opacity: 0.85;
+        margin-bottom: 4px;
+      }
+
+      .track-switch-btn strong {
+        display: block;
+        font-size: 14px;
+        letter-spacing: 1px;
       }
 
       #garagePanel {
@@ -701,6 +755,7 @@
     </style>
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="tracks/neon-circuit-1.js"></script>
+    <script src="tracks/sunset-rush.js"></script>
     <script src="cars/catalog.js"></script>
     <script src="audio.js"></script>
   </head>
@@ -739,6 +794,12 @@
       </aside>
 
       <div class="menu-play-wrap hit">
+        <div class="track-picker" aria-label="Escolher pista">
+          <button type="button" class="track-switch-btn" id="btnTrackSwitch" title="Trocar de pista">
+            <small>CLIQUE PARA TROCAR A PISTA</small>
+            <strong id="trackNameLabel">—</strong>
+          </button>
+        </div>
         <button type="button" class="play-btn" id="btnStartRace">JOGAR</button>
         <p id="equippedCarLabel" class="menu-hint"></p>
         <button type="button" id="debugPerfBtn">Teste FPS (diagnóstico)</button>
@@ -814,6 +875,74 @@
       const debugPerfBtn = document.getElementById("debugPerfBtn");
       const debugPerfReport = document.getElementById("debugPerfReport");
       const engine = new BABYLON.Engine(canvas, true);
+
+      const TRACK_STORAGE_KEY = "neonRush.activeTrack";
+
+      function getTrackIds() {
+        return Object.keys(window.NEON_RUSH_TRACKS || {});
+      }
+
+      function applySavedTrack() {
+        const saved = localStorage.getItem(TRACK_STORAGE_KEY);
+        if (saved && window.NEON_RUSH_TRACKS && window.NEON_RUSH_TRACKS[saved]) {
+          window.NEON_RUSH_ACTIVE_TRACK = saved;
+        } else if (!window.NEON_RUSH_ACTIVE_TRACK) {
+          const ids = getTrackIds();
+          window.NEON_RUSH_ACTIVE_TRACK = ids[0] || "neon-circuit-1";
+        }
+        localStorage.setItem(
+          TRACK_STORAGE_KEY,
+          window.NEON_RUSH_ACTIVE_TRACK
+        );
+      }
+
+      function refreshTrackLabel() {
+        const label = document.getElementById("trackNameLabel");
+        if (!label) return;
+        const ids = getTrackIds();
+        const id = window.NEON_RUSH_ACTIVE_TRACK;
+        const data =
+          window.NEON_RUSH_TRACKS && window.NEON_RUSH_TRACKS[id];
+        const name = data ? data.name : id || "—";
+        const idx = Math.max(0, ids.indexOf(id));
+        label.textContent =
+          ids.length > 1
+            ? name + "  (" + (idx + 1) + "/" + ids.length + ")"
+            : name;
+      }
+
+      function stepActiveTrack(delta) {
+        const ids = getTrackIds();
+        if (ids.length < 2) {
+          window.alert(
+            "Só existe 1 pista carregada. Confira se o arquivo tracks/sunset-rush.js abriu no navegador."
+          );
+          return;
+        }
+        const current = window.NEON_RUSH_ACTIVE_TRACK;
+        let idx = ids.indexOf(current);
+        if (idx < 0) idx = 0;
+        idx = (idx + delta + ids.length) % ids.length;
+        localStorage.setItem(TRACK_STORAGE_KEY, ids[idx]);
+        // A pista é montada na carga — recarrega para aplicar
+        window.location.reload();
+      }
+
+      function setCanvasInteractive(enabled) {
+        canvas.classList.toggle("racing", !!enabled);
+      }
+
+      applySavedTrack();
+      refreshTrackLabel();
+      setCanvasInteractive(false);
+
+      document
+        .getElementById("btnTrackSwitch")
+        .addEventListener("click", function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          stepActiveTrack(1);
+        });
 
       const debugEnabled =
         new URLSearchParams(window.location.search).get("debug") === "true";
@@ -3514,6 +3643,7 @@
           countdownOverlay.classList.remove("show");
           hud.classList.remove("show");
           mainMenu.classList.add("show");
+          setCanvasInteractive(false);
           progressLabel.textContent = "Progresso: 0%";
           placeLabel.textContent = "Posição: 1º / 3";
           speedLabel.textContent = "Velocidade: 0";
@@ -3555,6 +3685,7 @@
           raceOver = false;
           mainMenu.classList.remove("show");
           hud.classList.add("show");
+          setCanvasInteractive(true);
           placeGrid();
           enterRaceCamera();
           finishOrder.length = 0;
