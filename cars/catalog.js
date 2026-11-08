@@ -102,6 +102,24 @@
       accentColor: [1, 0.72, 0.35],
       ownedByDefault: false,
     },
+    monocar: {
+      id: "monocar",
+      name: "Monocar",
+      rarity: "common",
+      model: "monocar",
+      bodyColor: [0.85, 0.35, 0.95],
+      accentColor: [0.3, 1, 0.75],
+      ownedByDefault: false,
+    },
+    tanque: {
+      id: "tanque",
+      name: "Tanque",
+      rarity: "epic",
+      model: "tanque",
+      bodyColor: [0.28, 0.38, 0.18],
+      accentColor: [0.55, 0.48, 0.22],
+      ownedByDefault: false,
+    },
   };
 
   /** Sorteia um preço justo dentro da faixa da raridade do carro */

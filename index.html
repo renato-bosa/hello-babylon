@@ -775,6 +775,8 @@
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="tracks/neon-circuit-1.js"></script>
     <script src="tracks/sunset-rush.js"></script>
+    <script src="tracks/tunnel-rush.js"></script>
+    <script src="tracks/praia-rush.js"></script>
     <script src="cars/catalog.js"></script>
     <script src="audio.js"></script>
   </head>
@@ -2564,6 +2566,272 @@
         return car;
       }
 
+      function createMonocar(scene, id, bodyColor, accentColor) {
+        // Comum: carcaça normal + uma única roda grande no centro de baixo
+        const car = createStarterCar(scene, id, bodyColor, accentColor);
+
+        car.getChildMeshes(false).forEach(function (mesh) {
+          if (
+            mesh.name.indexOf("wheel") === 0 ||
+            mesh.name.indexOf("_hub") !== -1
+          ) {
+            mesh.dispose();
+          }
+        });
+
+        const darkMat = new BABYLON.StandardMaterial("monoDark_" + id, scene);
+        darkMat.diffuseColor = new BABYLON.Color3(0.08, 0.08, 0.1);
+        darkMat.emissiveColor = new BABYLON.Color3(0.02, 0.02, 0.03);
+
+        const accentMat = makeNeonMaterial(
+          "monoAccent_" + id,
+          scene,
+          accentColor,
+          0.85
+        );
+
+        // Poço / abertura sob a carcaça onde a roda passa
+        const wellL = BABYLON.MeshBuilder.CreateBox(
+          "monoWellL_" + id,
+          { width: 0.08, height: 0.35, depth: 1.1 },
+          scene
+        );
+        wellL.position.set(-0.55, 0.42, 0);
+        wellL.material = darkMat;
+        wellL.parent = car;
+
+        const wellR = wellL.clone("monoWellR_" + id);
+        wellR.position.x = 0.55;
+        wellR.parent = car;
+
+        // Roda única gigante no meio
+        const wheel = BABYLON.MeshBuilder.CreateCylinder(
+          "monoWheel_" + id,
+          { diameter: 1.15, height: 0.42, tessellation: 22 },
+          scene
+        );
+        wheel.rotation.z = Math.PI / 2;
+        wheel.position.set(0, 0.58, 0);
+        wheel.material = darkMat;
+        wheel.parent = car;
+
+        const hub = BABYLON.MeshBuilder.CreateCylinder(
+          "monoHub_" + id,
+          { diameter: 0.45, height: 0.46, tessellation: 14 },
+          scene
+        );
+        hub.rotation.z = Math.PI / 2;
+        hub.position.set(0, 0.58, 0);
+        hub.material = accentMat;
+        hub.parent = car;
+
+        // Eixo atravessando a carcaça
+        const axle = BABYLON.MeshBuilder.CreateCylinder(
+          "monoAxle_" + id,
+          { diameter: 0.1, height: 1.2, tessellation: 8 },
+          scene
+        );
+        axle.rotation.z = Math.PI / 2;
+        axle.position.set(0, 0.58, 0);
+        axle.material = accentMat;
+        axle.parent = car;
+
+        // Estabilizadores laterais pequeninos (não tocam o chão — só visual)
+        const skateL = BABYLON.MeshBuilder.CreateBox(
+          "monoSkateL_" + id,
+          { width: 0.18, height: 0.06, depth: 0.55 },
+          scene
+        );
+        skateL.position.set(-0.85, 0.12, 0);
+        skateL.material = darkMat;
+        skateL.parent = car;
+
+        const skateR = skateL.clone("monoSkateR_" + id);
+        skateR.position.x = 0.85;
+        skateR.parent = car;
+
+        return car;
+      }
+
+      function createTanque(scene, id, bodyColor, accentColor) {
+        // Épico: tanque de guerra — camuflagem, esteiras e canhão
+        const car = new BABYLON.TransformNode("car_" + id, scene);
+
+        const camoA = new BABYLON.StandardMaterial("camoA_" + id, scene);
+        camoA.diffuseColor = bodyColor.scale(0.75);
+        camoA.emissiveColor = bodyColor.scale(0.12);
+        camoA.specularColor = new BABYLON.Color3(0.12, 0.12, 0.1);
+
+        const camoB = new BABYLON.StandardMaterial("camoB_" + id, scene);
+        camoB.diffuseColor = accentColor.scale(0.7);
+        camoB.emissiveColor = accentColor.scale(0.1);
+
+        const camoDark = new BABYLON.StandardMaterial("camoDark_" + id, scene);
+        camoDark.diffuseColor = new BABYLON.Color3(0.12, 0.14, 0.08);
+        camoDark.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.02);
+
+        const metalMat = new BABYLON.StandardMaterial("tankMetal_" + id, scene);
+        metalMat.diffuseColor = new BABYLON.Color3(0.25, 0.26, 0.22);
+        metalMat.emissiveColor = new BABYLON.Color3(0.06, 0.06, 0.05);
+        metalMat.specularColor = new BABYLON.Color3(0.4, 0.4, 0.35);
+
+        // Casco principal
+        const hull = BABYLON.MeshBuilder.CreateBox(
+          "tankHull_" + id,
+          { width: 2.1, height: 0.7, depth: 3.6 },
+          scene
+        );
+        hull.position.y = 0.75;
+        hull.material = camoA;
+        hull.parent = car;
+
+        // Manchas de camuflagem
+        const patch1 = BABYLON.MeshBuilder.CreateBox(
+          "camoPatch1_" + id,
+          { width: 0.85, height: 0.72, depth: 1.1 },
+          scene
+        );
+        patch1.position.set(-0.55, 0.75, 0.6);
+        patch1.material = camoB;
+        patch1.parent = car;
+
+        const patch2 = BABYLON.MeshBuilder.CreateBox(
+          "camoPatch2_" + id,
+          { width: 0.7, height: 0.72, depth: 0.9 },
+          scene
+        );
+        patch2.position.set(0.6, 0.75, -0.8);
+        patch2.material = camoDark;
+        patch2.parent = car;
+
+        const patch3 = BABYLON.MeshBuilder.CreateBox(
+          "camoPatch3_" + id,
+          { width: 1.0, height: 0.72, depth: 0.7 },
+          scene
+        );
+        patch3.position.set(0.2, 0.75, 1.2);
+        patch3.material = camoDark;
+        patch3.parent = car;
+
+        // Frente inclinada
+        const nose = BABYLON.MeshBuilder.CreateBox(
+          "tankNose_" + id,
+          { width: 1.95, height: 0.45, depth: 0.7 },
+          scene
+        );
+        nose.position.set(0, 0.7, 1.95);
+        nose.rotation.x = -0.35;
+        nose.material = camoA;
+        nose.parent = car;
+
+        // Torre
+        const turret = BABYLON.MeshBuilder.CreateCylinder(
+          "tankTurret_" + id,
+          { diameter: 1.45, height: 0.55, tessellation: 14 },
+          scene
+        );
+        turret.position.set(0, 1.35, -0.15);
+        turret.material = camoB;
+        turret.parent = car;
+
+        const turretTop = BABYLON.MeshBuilder.CreateCylinder(
+          "tankTurretTop_" + id,
+          { diameter: 0.7, height: 0.28, tessellation: 12 },
+          scene
+        );
+        turretTop.position.set(0.15, 1.7, -0.15);
+        turretTop.material = camoDark;
+        turretTop.parent = car;
+
+        // Canhão
+        const barrel = BABYLON.MeshBuilder.CreateCylinder(
+          "tankBarrel_" + id,
+          { diameter: 0.22, height: 2.4, tessellation: 10 },
+          scene
+        );
+        barrel.rotation.x = Math.PI / 2;
+        barrel.position.set(0, 1.4, 1.35);
+        barrel.material = metalMat;
+        barrel.parent = car;
+
+        const muzzle = BABYLON.MeshBuilder.CreateCylinder(
+          "tankMuzzle_" + id,
+          { diameter: 0.32, height: 0.28, tessellation: 10 },
+          scene
+        );
+        muzzle.rotation.x = Math.PI / 2;
+        muzzle.position.set(0, 1.4, 2.55);
+        muzzle.material = camoDark;
+        muzzle.parent = car;
+
+        // Escotilha / mira
+        const hatch = BABYLON.MeshBuilder.CreateBox(
+          "tankHatch_" + id,
+          { width: 0.35, height: 0.12, depth: 0.35 },
+          scene
+        );
+        hatch.position.set(-0.25, 1.72, -0.35);
+        hatch.material = metalMat;
+        hatch.parent = car;
+
+        // Saia lateral / blindagem
+        const skirtL = BABYLON.MeshBuilder.CreateBox(
+          "tankSkirtL_" + id,
+          { width: 0.12, height: 0.45, depth: 3.4 },
+          scene
+        );
+        skirtL.position.set(-1.1, 0.55, 0);
+        skirtL.material = camoDark;
+        skirtL.parent = car;
+
+        const skirtR = skirtL.clone("tankSkirtR_" + id);
+        skirtR.position.x = 1.1;
+        skirtR.parent = car;
+
+        // Esteiras (blocos longos) + rodas de apoio
+        function addTrack(side) {
+          const track = BABYLON.MeshBuilder.CreateBox(
+            "track_" + side + "_" + id,
+            { width: 0.55, height: 0.35, depth: 3.5 },
+            scene
+          );
+          track.position.set(side * 1.05, 0.28, 0);
+          track.material = metalMat;
+          track.parent = car;
+
+          for (let i = -1; i <= 1; i++) {
+            const roller = BABYLON.MeshBuilder.CreateCylinder(
+              "roller_" + side + "_" + i + "_" + id,
+              { diameter: 0.48, height: 0.5, tessellation: 12 },
+              scene
+            );
+            roller.rotation.z = Math.PI / 2;
+            roller.position.set(side * 1.05, 0.28, i * 1.15);
+            roller.material = camoDark;
+            roller.parent = car;
+          }
+        }
+        addTrack(-1);
+        addTrack(1);
+
+        // Farol de combate
+        const lamp = BABYLON.MeshBuilder.CreateSphere(
+          "tankLamp_" + id,
+          { diameter: 0.22, segments: 8 },
+          scene
+        );
+        lamp.position.set(-0.55, 0.95, 2.15);
+        lamp.material = makeNeonMaterial(
+          "tankLampMat_" + id,
+          scene,
+          new BABYLON.Color3(1, 0.85, 0.4),
+          0.9
+        );
+        lamp.parent = car;
+
+        return car;
+      }
+
       function createCarByModel(scene, modelId, instanceId, bodyColor, accentColor) {
         if (modelId === "turbocharger") {
           return createTurbochargerCar(
@@ -2590,6 +2858,12 @@
         }
         if (modelId === "tropical") {
           return createTropicalCar(scene, instanceId, bodyColor, accentColor);
+        }
+        if (modelId === "monocar") {
+          return createMonocar(scene, instanceId, bodyColor, accentColor);
+        }
+        if (modelId === "tanque") {
+          return createTanque(scene, instanceId, bodyColor, accentColor);
         }
         return createStarterCar(scene, instanceId, bodyColor, accentColor);
       }
@@ -2654,6 +2928,18 @@
         };
       }
 
+      function yawFromTangent(tangent) {
+        return Math.atan2(tangent.x, tangent.z);
+      }
+
+      // Inclinação suave do morro (CreateGround / carros no eixo local)
+      function pitchFromTangent(tangent) {
+        const horiz = Math.sqrt(
+          tangent.x * tangent.x + tangent.z * tangent.z
+        );
+        return -Math.atan2(tangent.y, Math.max(0.0001, horiz));
+      }
+
       function distanceAlongPath(path3D, worldPos) {
         return path3D.getDistanceAt(path3D.getClosestPositionTo(worldPos));
       }
@@ -2669,7 +2955,8 @@
         const pieceLength = 8;
         const group = new BABYLON.TransformNode("roadPiece_" + index, scene);
         group.position.copyFrom(sample.position);
-        group.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
+        group.rotation.y = yawFromTangent(sample.tangent);
+        group.rotation.x = pitchFromTangent(sample.tangent);
 
         const road = BABYLON.MeshBuilder.CreateGround(
           "road_" + index,
@@ -2709,13 +2996,135 @@
         return group;
       }
 
+      // Tapete contínuo de areia (evita “triângulos pretos” nas curvas)
+      function createBeachSandField(scene, path3D, trackLength, sandMat) {
+        let minX = Infinity;
+        let maxX = -Infinity;
+        let minZ = Infinity;
+        let maxZ = -Infinity;
+        const sampleStep = Math.max(12, trackLength / 40);
+        for (let d = 0; d <= trackLength; d += sampleStep) {
+          const p = path3D.getPointAt(
+            Math.max(0, Math.min(1, d / trackLength))
+          );
+          minX = Math.min(minX, p.x);
+          maxX = Math.max(maxX, p.x);
+          minZ = Math.min(minZ, p.z);
+          maxZ = Math.max(maxZ, p.z);
+        }
+        const margin = 140;
+        const width = maxX - minX + margin * 2;
+        const depth = maxZ - minZ + margin * 2;
+        const sand = BABYLON.MeshBuilder.CreateGround(
+          "beachSandField",
+          { width: width, height: depth },
+          scene
+        );
+        sand.position.set((minX + maxX) / 2, -0.04, (minZ + maxZ) / 2);
+        sand.material = sandMat;
+        return sand;
+      }
+
+      let beachTapeSerial = 0;
+
+      function createBeachTape(scene, sample, side, tapeA, tapeB) {
+        const sid = beachTapeSerial++;
+        const group = new BABYLON.TransformNode("beachTape_" + sid, scene);
+        group.position.copyFrom(sample.position);
+        group.rotation.y = yawFromTangent(sample.tangent);
+        group.rotation.x = pitchFromTangent(sample.tangent);
+
+        const post = BABYLON.MeshBuilder.CreateBox(
+          "tapePost_" + sid,
+          { width: 0.08, height: 0.85, depth: 0.08 },
+          scene
+        );
+        post.position.set(side * 7.1, 0.42, 0);
+        post.material = tapeB;
+        post.parent = group;
+
+        const ribbon = BABYLON.MeshBuilder.CreateBox(
+          "tapeRibbon_" + sid,
+          { width: 0.06, height: 0.22, depth: 7.2 },
+          scene
+        );
+        ribbon.position.set(side * 7.1, 0.72, 0);
+        ribbon.material = sid % 2 === 0 ? tapeA : tapeB;
+        ribbon.parent = group;
+
+        return group;
+      }
+
+      // Faixa de mar: bem larga para os lados e comprida para o horizonte
+      function createOceanPlane(scene, sample, oceanMat) {
+        const group = new BABYLON.TransformNode("oceanPad", scene);
+        group.position.copyFrom(sample.position);
+        group.rotation.y = yawFromTangent(sample.tangent);
+
+        const water = BABYLON.MeshBuilder.CreateGround(
+          "oceanWater",
+          { width: 520, height: 260 },
+          scene
+        );
+        // Começa um pouco à frente e segue longe; y leve abaixo da areia
+        water.position.set(0, -0.12, 110);
+        water.material = oceanMat;
+        water.parent = group;
+        return group;
+      }
+
+      let tunnelRingSerial = 0;
+
+      function createTunnelRing(scene, sample, wallMat, neonMat) {
+        const sid = tunnelRingSerial++;
+        const group = new BABYLON.TransformNode("tunnelRing_" + sid, scene);
+        group.position.copyFrom(sample.position);
+        group.rotation.y = yawFromTangent(sample.tangent);
+        group.rotation.x = pitchFromTangent(sample.tangent);
+
+        const left = BABYLON.MeshBuilder.CreateBox(
+          "tunnelL_" + sid,
+          { width: 0.45, height: 5.2, depth: 9.5 },
+          scene
+        );
+        left.position.set(-7.6, 2.6, 0);
+        left.material = wallMat;
+        left.parent = group;
+
+        const right = left.clone("tunnelR_" + sid);
+        right.position.x = 7.6;
+        right.parent = group;
+
+        const roof = BABYLON.MeshBuilder.CreateBox(
+          "tunnelRoof_" + sid,
+          { width: 15.6, height: 0.4, depth: 9.5 },
+          scene
+        );
+        roof.position.set(0, 5.2, 0);
+        roof.material = wallMat;
+        roof.parent = group;
+
+        // Faixa neon no teto (barata: 1 caixa)
+        const strip = BABYLON.MeshBuilder.CreateBox(
+          "tunnelStrip_" + sid,
+          { width: 0.35, height: 0.12, depth: 9.2 },
+          scene
+        );
+        strip.position.set(0, 5.0, 0);
+        strip.material = neonMat;
+        strip.parent = group;
+
+        return group;
+      }
+
       let finishLineSerial = 0;
 
       function createFinishLine(scene, sample) {
         const sid = finishLineSerial++;
         const gate = new BABYLON.TransformNode("finishGate_" + sid, scene);
         gate.position.copyFrom(sample.position);
-        gate.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
+        gate.rotation.y = yawFromTangent(sample.tangent);
+        gate.rotation.x = pitchFromTangent(sample.tangent);
 
         const pink = makeNeonMaterial(
           "finishPink_" + sid,
@@ -2944,6 +3353,31 @@
         roadMat.diffuseColor = new BABYLON.Color3(0.04, 0.04, 0.08);
         roadMat.emissiveColor = new BABYLON.Color3(0.03, 0.03, 0.07);
 
+        const sandMat = new BABYLON.StandardMaterial("sandMat", scene);
+        sandMat.diffuseColor = new BABYLON.Color3(0.72, 0.58, 0.32);
+        sandMat.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0.06);
+        sandMat.specularColor = new BABYLON.Color3(0.08, 0.07, 0.04);
+
+        const tapeMatA = makeNeonMaterial(
+          "tapeMatA",
+          scene,
+          new BABYLON.Color3(1, 0.85, 0.15),
+          0.75
+        );
+        const tapeMatB = makeNeonMaterial(
+          "tapeMatB",
+          scene,
+          new BABYLON.Color3(1, 0.25, 0.2),
+          0.7
+        );
+
+        const oceanMat = new BABYLON.StandardMaterial("oceanMat", scene);
+        oceanMat.diffuseColor = new BABYLON.Color3(0.08, 0.35, 0.65);
+        oceanMat.emissiveColor = new BABYLON.Color3(0.05, 0.28, 0.55);
+        oceanMat.alpha = 0.88;
+        oceanMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+        oceanMat.backFaceCulling = false;
+
         // Carrega o pacote de dados da pista ativa (mutável p/ trocar sem reload)
         let track = buildTrackFromData(getActiveTrackData());
         let path3D = track.path3D;
@@ -2967,7 +3401,31 @@
 
         const roadPieces = [];
         const buildingGroups = [];
+        const tunnelRings = [];
+        const beachProps = [];
         let finishGate = null;
+        let tunnelWallMat = null;
+        let tunnelNeonMat = null;
+
+        function getTunnelRange() {
+          const feat =
+            track.data.features && track.data.features.tunnel
+              ? track.data.features.tunnel
+              : null;
+          if (!feat || !feat.startPoint || !feat.endPoint) return null;
+          const startPos = BABYLON.Vector3.FromArray(feat.startPoint);
+          const endPos = BABYLON.Vector3.FromArray(feat.endPoint);
+          const startDist = path3D.getDistanceAt(
+            path3D.getClosestPositionTo(startPos)
+          );
+          const endDist = path3D.getDistanceAt(
+            path3D.getClosestPositionTo(endPos)
+          );
+          return {
+            startDist: Math.min(startDist, endDist),
+            endDist: Math.max(startDist, endDist),
+          };
+        }
 
         function clearTrackWorld() {
           while (roadPieces.length) {
@@ -2978,6 +3436,14 @@
             const group = buildingGroups.pop();
             if (group) group.dispose();
           }
+          while (tunnelRings.length) {
+            const ring = tunnelRings.pop();
+            if (ring) ring.dispose();
+          }
+          while (beachProps.length) {
+            const prop = beachProps.pop();
+            if (prop) prop.dispose();
+          }
           if (finishGate) {
             finishGate.dispose();
             finishGate = null;
@@ -2985,25 +3451,107 @@
         }
 
         function buildTrackWorld() {
+          const features = track.data.features || {};
+          const isBeach = !!features.beach;
           const step = 7;
           let pieceIndex = 0;
-          for (let d = 0; d < trackLength; d += step) {
-            roadPieces.push(
-              createRoadPiece(
-                scene,
-                samplePath(path3D, d),
-                roadMat,
-                edgeMat,
-                pieceIndex++
-              )
+
+          if (isBeach) {
+            // Um único chão de areia — sem fendas pretas entre pedaços
+            beachProps.push(
+              createBeachSandField(scene, path3D, trackLength, sandMat)
             );
+            for (let d = 0; d < trackLength; d += step) {
+              if (d < track.startDist - 5 || d > track.finishDist + 20) {
+                continue;
+              }
+              const sample = samplePath(path3D, d);
+              beachProps.push(
+                createBeachTape(scene, sample, -1, tapeMatA, tapeMatB)
+              );
+              beachProps.push(
+                createBeachTape(scene, sample, 1, tapeMatA, tapeMatB)
+              );
+            }
+          } else {
+            for (let d = 0; d < trackLength; d += step) {
+              roadPieces.push(
+                createRoadPiece(
+                  scene,
+                  samplePath(path3D, d),
+                  roadMat,
+                  edgeMat,
+                  pieceIndex++
+                )
+              );
+            }
           }
 
           finishSample = samplePath(path3D, track.finishDist);
           finishGate = createFinishLine(scene, finishSample);
 
+          const tunnel = getTunnelRange();
+
+          // Túnel: anéis espaçados (leve — sem prédios dentro)
+          if (tunnel) {
+            if (!tunnelWallMat) {
+              tunnelWallMat = new BABYLON.StandardMaterial(
+                "tunnelWallMat",
+                scene
+              );
+              tunnelWallMat.diffuseColor = new BABYLON.Color3(0.06, 0.08, 0.12);
+              tunnelWallMat.emissiveColor = new BABYLON.Color3(0.03, 0.05, 0.08);
+            }
+            if (!tunnelNeonMat) {
+              tunnelNeonMat = makeNeonMaterial(
+                "tunnelNeonMat",
+                scene,
+                new BABYLON.Color3(0.2, 1, 0.85),
+                0.95
+              );
+            }
+            for (
+              let d = tunnel.startDist;
+              d <= tunnel.endDist;
+              d += step * 1.4
+            ) {
+              tunnelRings.push(
+                createTunnelRing(
+                  scene,
+                  samplePath(path3D, d),
+                  tunnelWallMat,
+                  tunnelNeonMat
+                )
+              );
+            }
+          }
+
+          // Mar logo após a chegada (praia): faixa larga, não um “quadrado”
+          if (typeof features.oceanAfterFinish === "number") {
+            const oceanDist =
+              track.finishDist + Math.max(10, features.oceanAfterFinish);
+            beachProps.push(
+              createOceanPlane(
+                scene,
+                samplePath(path3D, Math.min(trackLength - 1, oceanDist)),
+                oceanMat
+              )
+            );
+          }
+
+          if (features.noBuildings) {
+            return;
+          }
+
           let buildingId = 0;
           for (let d = 10; d < trackLength; d += 14) {
+            if (
+              tunnel &&
+              d >= tunnel.startDist - 6 &&
+              d <= tunnel.endDist + 6
+            ) {
+              continue;
+            }
             const sample = samplePath(path3D, d);
             const side = sample.binormal;
             buildingGroups.push(
@@ -3032,6 +3580,13 @@
           edgeMat.emissiveColor = edgeColor.scale(1);
           const road = trackData.theme.roadEmissive;
           roadMat.emissiveColor = new BABYLON.Color3(road[0], road[1], road[2]);
+          if (trackData.features && trackData.features.beach) {
+            sandMat.emissiveColor = new BABYLON.Color3(
+              road[0],
+              road[1],
+              road[2]
+            );
+          }
         }
 
         buildTrackWorld();
@@ -3683,8 +4238,8 @@
           const sample = samplePath(path3D, Math.max(0, distance));
           const pos = sample.position.add(sample.binormal.scale(lateral));
           racer.mesh.position.copyFrom(pos);
-          racer.mesh.position.y = 0;
-          racer.mesh.rotation.y = Math.atan2(sample.tangent.x, sample.tangent.z);
+          racer.mesh.rotation.y = yawFromTangent(sample.tangent);
+          racer.mesh.rotation.x = pitchFromTangent(sample.tangent);
           racer.mesh.rotation.z = 0;
           racer.speed = 0;
           racer.distAlong = distanceAlongPath(path3D, racer.mesh.position);
@@ -3914,14 +4469,45 @@
 
           const sharpCurve = bend > racer.curveCaution;
           const badlyAligned = Math.abs(yawError) > 0.55;
-          // Depois da chegada: só desacelera (sem acelerar)
-          const up = !racer.finished && !sharpCurve && !badlyAligned;
+          const almostStopped = Math.abs(racer.speed) < 4;
+          // Evita deadlock: parado + desalinhado nunca mais acelerava/virava
+          const up =
+            !racer.finished &&
+            (almostStopped || (!sharpCurve && !badlyAligned));
           const down =
             !racer.finished &&
+            !almostStopped &&
             sharpCurve &&
             bend > racer.curveCaution + 0.08;
 
           return { up, down, left, right };
+        }
+
+        function markRacerFinished(racer, finishTime) {
+          if (racer.finished) return;
+          racer.finished = true;
+          racer.finishTime = finishTime;
+          racer.progress = 1;
+          finishOrder.push(racer);
+          GameAudio.playFinish(racer.isPlayer);
+          updateRankingPanel();
+        }
+
+        function forceFinishStragglers() {
+          if (raceOver || finishOrder.length === 0) return;
+          const firstFinish = finishOrder[0].finishTime;
+          // Se alguém já chegou há tempo e ainda falta gente, encerra os atrasados
+          if (raceTime < firstFinish + 14) return;
+          const pending = racers
+            .filter(function (racer) {
+              return !racer.finished;
+            })
+            .sort(function (a, b) {
+              return b.distAlong - a.distAlong;
+            });
+          pending.forEach(function (racer, i) {
+            markRacerFinished(racer, raceTime + (i + 1) * 0.05);
+          });
         }
 
         function applyDrive(racer, input, dt) {
@@ -3946,7 +4532,11 @@
           const speedCap = getRacerMaxSpeed(racer);
           racer.speed = Math.max(-12, Math.min(speedCap, racer.speed));
 
-          const steerPower = Math.min(1, Math.abs(racer.speed) / 10);
+          // Sem velocidade mínima de steer o carro parado nunca realinha
+          const steerPower = Math.max(
+            racer.finished ? 0 : 0.4,
+            Math.min(1, Math.abs(racer.speed) / 10)
+          );
           if (input.left) racer.mesh.rotation.y -= PHYSICS.turnRate * steerPower * dt;
           if (input.right) racer.mesh.rotation.y += PHYSICS.turnRate * steerPower * dt;
 
@@ -3962,10 +4552,10 @@
             Math.cos(racer.mesh.rotation.y)
           );
           racer.mesh.position.addInPlace(forward.scale(racer.speed * dt));
-          racer.mesh.position.y = 0;
 
           const t = path3D.getClosestPositionTo(racer.mesh.position);
           const closest = path3D.getPointAt(t);
+          const tan = path3D.getTangentAt(t).normalize();
           const binormal = path3D.getBinormalAt(t).normalize();
           const lateral = BABYLON.Vector3.Dot(
             racer.mesh.position.subtract(closest),
@@ -3980,6 +4570,10 @@
             racer.speed *= 0.97;
           }
 
+          // Segue o relevo da pista (morro suave) sem física extra
+          racer.mesh.position.y = closest.y;
+          racer.mesh.rotation.x = pitchFromTangent(tan);
+
           racer.distAlong = distanceAlongPath(path3D, racer.mesh.position);
           if (!racer.finished) {
             racer.progress = raceProgressFromDistance(racer.distAlong, track);
@@ -3987,23 +4581,16 @@
             racer.progress = 1;
           }
 
-          // Só marca chegada ao CRUZAR a linha (sem congelar a velocidade)
+          // Chegada: cruza o plano OU já passou da distância da linha
           const toFinish = racer.mesh.position.subtract(finishSample.position);
           const finishSide = BABYLON.Vector3.Dot(toFinish, finishSample.tangent);
           const nearFinish = racer.distAlong > track.finishDist - 35;
+          const crossedPlane =
+            nearFinish && racer.prevFinishSide < 0 && finishSide >= 0;
+          const pastFinishDist = racer.distAlong >= track.finishDist;
 
-          if (
-            !racer.finished &&
-            nearFinish &&
-            racer.prevFinishSide < 0 &&
-            finishSide >= 0
-          ) {
-            racer.finished = true;
-            racer.finishTime = raceTime;
-            racer.progress = 1;
-            finishOrder.push(racer);
-            GameAudio.playFinish(racer.isPlayer);
-            updateRankingPanel();
+          if (!racer.finished && (crossedPlane || pastFinishDist)) {
+            markRacerFinished(racer, raceTime);
           }
           racer.prevFinishSide = finishSide;
         }
@@ -4115,6 +4702,8 @@
         function restorePerfScene() {
           setNodesEnabled(roadPieces, true);
           setNodesEnabled(buildingGroups, true);
+          setNodesEnabled(tunnelRings, true);
+          setNodesEnabled(beachProps, true);
           if (finishGate) finishGate.setEnabled(true);
           player.mesh.setEnabled(true);
           rivalA.mesh.setEnabled(false);
@@ -4214,6 +4803,8 @@
             await measure("8) Quase vazio (só céu)", function () {
               setNodesEnabled(roadPieces, false);
               setNodesEnabled(buildingGroups, false);
+              setNodesEnabled(tunnelRings, false);
+              setNodesEnabled(beachProps, false);
               if (finishGate) finishGate.setEnabled(false);
               player.mesh.setEnabled(false);
               scene.fogMode = BABYLON.Scene.FOGMODE_NONE;
@@ -4278,6 +4869,7 @@
           applyDrive(player, playerInput, dt);
           applyDrive(rivalA, getAIInput(rivalA, dt), dt);
           applyDrive(rivalB, getAIInput(rivalB, dt), dt);
+          forceFinishStragglers();
 
           // Motores dos 3 carros (rivais mais baixos quando longe)
           GameAudio.setEngineSpeed(
