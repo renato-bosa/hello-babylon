@@ -1813,6 +1813,7 @@
           const opts = options || {};
           const ids = getGarageCarIds();
           if (!ids.length) return;
+          const spinY = getHubSpinY();
           garageIndex = ((index % ids.length) + ids.length) % ids.length;
           const carId = ids[garageIndex];
           const owned = loadOwnedCars();
@@ -1834,8 +1835,10 @@
             rebuildPlayerCar(carId, { saveEquip: false });
           }
 
-          placeGrid();
-          enterMenuCamera();
+          refreshMenuDisplay({
+            resetView: !!opts.resetView,
+            spinY: spinY,
+          });
           updateGarageHud();
         }
 
@@ -1851,9 +1854,9 @@
           if (!carId) return;
           const owned = loadOwnedCars();
           if (owned.indexOf(carId) === -1) return;
+          const spinY = getHubSpinY();
           rebuildPlayerCar(carId, { saveEquip: true });
-          placeGrid();
-          enterMenuCamera();
+          refreshMenuDisplay({ resetView: false, spinY: spinY });
           updateGarageHud();
         }
 
@@ -1869,7 +1872,7 @@
           const panel = document.getElementById("garagePanel");
           panel.classList.add("show");
           panel.setAttribute("aria-hidden", "false");
-          showGarageCarAt(garageIndex);
+          showGarageCarAt(garageIndex, { resetView: false });
         }
 
         function closeGarage(options) {
@@ -2120,14 +2123,18 @@
           });
         }
 
-        function showShopOfferAt(index) {
+        function showShopOfferAt(index, options) {
           if (!shopOpen || !inMenu || perfTestRunning) return;
+          const opts = options || {};
+          const spinY = getHubSpinY();
           if (!shopOffers.length) {
             shopPreviewId = null;
             hideShopItemPreview();
             rebuildPlayerCar(equippedCarId, { saveEquip: true });
-            placeGrid();
-            enterMenuCamera();
+            refreshMenuDisplay({
+              resetView: !!opts.resetView,
+              spinY: spinY,
+            });
             updateShopHud();
             return;
           }
@@ -2141,16 +2148,17 @@
             if (player.carModelId !== equippedCarId) {
               rebuildPlayerCar(equippedCarId, { saveEquip: true });
             }
-            placeGrid();
             showShopItemPreview(offer.itemId);
           } else {
             hideShopItemPreview();
             shopPreviewId = offer.carId;
             rebuildPlayerCar(offer.carId, { saveEquip: false });
-            placeGrid();
           }
 
-          enterMenuCamera();
+          refreshMenuDisplay({
+            resetView: !!opts.resetView,
+            spinY: spinY,
+          });
           updateShopHud();
         }
 
@@ -2209,7 +2217,7 @@
           const panel = document.getElementById("shopPanel");
           panel.classList.add("show");
           panel.setAttribute("aria-hidden", "false");
-          showShopOfferAt(0);
+          showShopOfferAt(0, { resetView: false });
         }
 
         function closeShop(options) {
@@ -2290,22 +2298,46 @@
           rivalB.mesh.setEnabled(visible);
         }
 
-        function enterMenuCamera() {
+        function getHubSpinY() {
+          if (shopItemPreview) return shopItemPreview.rotation.y;
+          if (player && player.mesh) return player.mesh.rotation.y;
+          return 0;
+        }
+
+        function refreshMenuDisplay(options) {
+          const opts = options || {};
+          const resetView = !!opts.resetView;
+          const spinY =
+            opts.spinY != null ? opts.spinY : getHubSpinY();
+
           placeGrid();
           setRivalVisibility(false);
-          player.mesh.rotation.z = 0;
+
           if (shopItemPreview) {
             placeShopItemPreview();
             player.mesh.setEnabled(false);
+            shopItemPreview.rotation.y = spinY;
+          } else if (player && player.mesh) {
+            player.mesh.setEnabled(true);
+            player.mesh.rotation.z = 0;
+            player.mesh.rotation.y = spinY;
           }
+
           const focus = shopItemPreview || player.mesh;
+          const focusY = shopItemPreview ? 0.75 : 0.6;
           menuCamera.setTarget(
-            focus.position.add(new BABYLON.Vector3(0, 0.75, 0))
+            focus.position.add(new BABYLON.Vector3(0, focusY, 0))
           );
-          menuCamera.alpha = -Math.PI / 2;
-          menuCamera.beta = 1.15;
+          if (resetView) {
+            menuCamera.alpha = -Math.PI / 2;
+            menuCamera.beta = 1.15;
+          }
           menuCamera.radius = shopItemPreview ? 8.2 : 8.5;
           scene.activeCamera = menuCamera;
+        }
+
+        function enterMenuCamera() {
+          refreshMenuDisplay({ resetView: true });
         }
 
         function enterRaceCamera() {
