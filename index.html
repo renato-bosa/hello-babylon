@@ -1756,9 +1756,6 @@
           player.mesh.rotation.y = rotY;
           player.mesh.setEnabled(wasEnabled);
           camera.lockedTarget = player.mesh;
-          menuCamera.setTarget(
-            player.mesh.position.add(new BABYLON.Vector3(0, 0.6, 0))
-          );
           if (saveEquip) {
             equippedCarId = carId;
             saveEquippedCarId(carId);
@@ -2323,16 +2320,16 @@
             player.mesh.rotation.y = spinY;
           }
 
-          const focus = shopItemPreview || player.mesh;
-          const focusY = shopItemPreview ? 0.75 : 0.6;
+          // O enquadramento usa a base da vitrine, independente da prévia.
+          // A altura do item não deve mover a câmera ao alternar ofertas.
           menuCamera.setTarget(
-            focus.position.add(new BABYLON.Vector3(0, focusY, 0))
+            player.mesh.position.add(new BABYLON.Vector3(0, 0.6, 0))
           );
           if (resetView) {
             menuCamera.alpha = -Math.PI / 2;
             menuCamera.beta = 1.15;
+            menuCamera.radius = 8.5;
           }
-          menuCamera.radius = shopItemPreview ? 8.2 : 8.5;
           scene.activeCamera = menuCamera;
         }
 
@@ -2950,11 +2947,6 @@
               const spinMesh = shopItemPreview || player.mesh;
               spinMesh.rotation.y += dt * 0.55;
               menuCamera.alpha += dt * 0.22;
-              menuCamera.setTarget(
-                spinMesh.position.add(
-                  new BABYLON.Vector3(0, shopItemPreview ? 0.75 : 0.6, 0)
-                )
-              );
             }
             return;
           }
