@@ -27,7 +27,7 @@
           <span>MOEDAS</span>
           <strong id="moneyLabel">0</strong>
           <span id="multiplierBadge" class="boost-badge mult" hidden>×3 próxima</span>
-          <span id="tireBadge" class="boost-badge tire" hidden>Pneu 70</span>
+          <span id="tireBadge" class="boost-badge tire" hidden>Pneu +25%</span>
         </div>
         <div class="menu-stats" aria-label="Conta">
           <div class="menu-stat" title="Carros desbloqueados">
@@ -238,7 +238,10 @@
       const CALIBRATED_TIRE_KEY = "neonRush.calibratedTireNext";
       const CALIBRATED_TIRE_PRICE_MIN = 30;
       const CALIBRATED_TIRE_PRICE_MAX = 50;
-      const CALIBRATED_TIRE_MAX_SPEED = 70;
+      const CALIBRATED_TIRE_SPEED_MULT = 1.25;
+      const CALIBRATED_TIRE_BONUS_PCT = Math.round(
+        (CALIBRATED_TIRE_SPEED_MULT - 1) * 100
+      );
 
       function loadCoins() {
         const saved = localStorage.getItem(COINS_STORAGE_KEY);
@@ -300,6 +303,7 @@
         }
         const tireBadge = document.getElementById("tireBadge");
         if (tireBadge) {
+          tireBadge.textContent = "Pneu +" + CALIBRATED_TIRE_BONUS_PCT + "%";
           tireBadge.hidden = !hasPendingCalibratedTire();
         }
       }
@@ -323,7 +327,7 @@
 
       // Física base; itens da loja podem buffar só o jogador na próxima corrida
       const PHYSICS = {
-        maxSpeed: 55,
+        maxSpeed: 70,
         accel: 28,
         brake: 40,
         friction: 10,
@@ -694,7 +698,7 @@
           spoke.parent = wheel;
         }
 
-        // Placa "70" com texto real (não geometria)
+        // Placa de bônus relativo à vel. máx.
         const badge = BABYLON.MeshBuilder.CreatePlane(
           "tireBadge_" + id,
           { width: 1.15, height: 0.7 },
@@ -718,10 +722,10 @@
         ctx.fillRect(8, 8, 240, 144);
         ctx.strokeRect(8, 8, 240, 144);
         badgeTex.drawText(
-          "70",
+          "+" + CALIBRATED_TIRE_BONUS_PCT + "%",
           null,
           108,
-          "bold 96px sans-serif",
+          "bold 72px sans-serif",
           "#9fe3ff",
           null,
           true,
@@ -1845,6 +1849,7 @@
             lapArmed: false,
             pathHint: 0,
             wallHitCooldown: 0,
+            againstWall: false,
             finished: false,
             finishTime: null,
             prevFinishSide: -1,
@@ -2287,7 +2292,8 @@
             id: "calibrated-tire",
             name: "Pneu calibrado",
             color: "#7ec8ff",
-            blurb: "Próxima corrida: vel. máx. 70",
+            blurb:
+              "Próxima corrida: vel. máx. +" + CALIBRATED_TIRE_BONUS_PCT + "%",
             rollPrice: function () {
               return rollPriceBetween(
                 CALIBRATED_TIRE_PRICE_MIN,
@@ -2787,9 +2793,9 @@
           // Nova e Echo escolhem carro do catálogo (comuns mais comuns)
           assignBotCarsForRace();
 
-          // Pneu calibrado: só o jogador, só nesta corrida
+          // Pneu calibrado: só o jogador, só nesta corrida (bônus relativo)
           if (hasPendingCalibratedTire()) {
-            player.maxSpeed = CALIBRATED_TIRE_MAX_SPEED;
+            player.maxSpeed = PHYSICS.maxSpeed * CALIBRATED_TIRE_SPEED_MULT;
             consumeCalibratedTire();
             refreshMoneyLabel();
           } else {
@@ -3085,13 +3091,16 @@
           );
 
           const laneLimit = getActiveLaneLimit();
-          if (Math.abs(lateral) > laneLimit) {
+          const hittingWall = Math.abs(lateral) > laneLimit;
+          if (hittingWall) {
             const excess = Math.abs(lateral) - laneLimit;
             racer.mesh.position.addInPlace(
               side.scale(-Math.sign(lateral) * excess)
             );
+            // Som só na entrada do contato (evita eco enquanto raspa a lateral)
             const hitSpeed = Math.abs(racer.speed);
             if (
+              !racer.againstWall &&
               racer.wallHitCooldown <= 0 &&
               hitSpeed > 6 &&
               excess > 0.02
@@ -3108,9 +3117,24 @@
               if (playHit) {
                 GameAudio.playWallHit(intensity, racer.isPlayer);
               }
-              racer.wallHitCooldown = racer.isPlayer ? 0.22 : 0.35;
+              racer.wallHitCooldown = 0.28;
             }
+            racer.againstWall = true;
             racer.speed *= 0.97;
+          } else {
+            racer.againstWall = false;
+          }
+
+          // Arraste: contínuo enquanto raspa a lateral (só jogador)
+          if (racer.isPlayer) {
+            const scrapeSpeed = Math.abs(racer.speed);
+            const scraping = hittingWall && scrapeSpeed > 4;
+            GameAudio.setWallScrape(
+              scraping,
+              scraping
+                ? Math.min(1, scrapeSpeed / getRacerMaxSpeed(racer))
+                : 0
+            );
           }
 
           // Segue o relevo da pista (morro suave) sem física extra

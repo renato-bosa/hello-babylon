@@ -3,7 +3,7 @@
  * - Motor de cada carro (jogador + rivais)
  * - Bips da contagem 3-2-1-VAI!
  * - Som ao cruzar a linha de chegada
- * - Batida na lateral da pista
+ * - Batida / arraste na lateral da pista
  * - Checkpoint de volta
  */
 (function (global) {
@@ -48,10 +48,42 @@
     };
   }
 
+  function createScrapeVoice(ctx, master) {
+    const dur = 0.35;
+    const buffer = ctx.createBuffer(
+      1,
+      Math.floor(ctx.sampleRate * dur),
+      ctx.sampleRate
+    );
+    const data = buffer.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.loop = true;
+
+    const filter = ctx.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = 700;
+    filter.Q.value = 0.9;
+
+    const gain = ctx.createGain();
+    gain.gain.value = 0;
+
+    source.connect(filter);
+    filter.connect(gain);
+    gain.connect(master);
+    source.start();
+
+    return { source: source, filter: filter, gain: gain };
+  }
+
   const GameAudio = {
     ctx: null,
     master: null,
     engines: {},
+    scrape: null,
     engineReady: false,
 
     // Mesma família de nota + leve desafinação (não brigam entre si)
@@ -73,6 +105,7 @@
         this.master.gain.value = 0.45;
         this.master.connect(this.ctx.destination);
         this._buildEngines();
+        this.scrape = createScrapeVoice(this.ctx, this.master);
       }
       if (this.ctx.state === "suspended") {
         this.ctx.resume();
@@ -133,6 +166,22 @@
       Object.keys(this.engines).forEach(function (id) {
         self.engines[id].gain.gain.setTargetAtTime(0, t, 0.15);
       });
+      this.setWallScrape(false, 0);
+    },
+
+    /** Arraste contínuo na lateral (volume/timbre seguem a velocidade) */
+    setWallScrape: function (active, intensity) {
+      if (!this.scrape || !this.ctx) return;
+      const t = this.ctx.currentTime;
+      const force = Math.max(0, Math.min(1, intensity || 0));
+      if (!active || force < 0.05) {
+        this.scrape.gain.gain.setTargetAtTime(0, t, 0.08);
+        return;
+      }
+      const vol = 0.015 + force * 0.07;
+      const freq = 480 + force * 520;
+      this.scrape.filter.frequency.setTargetAtTime(freq, t, 0.06);
+      this.scrape.gain.gain.setTargetAtTime(vol, t, 0.06);
     },
 
     /** bip da contagem; isGo = som do VAI! */
@@ -172,7 +221,7 @@
       const ctx = this.ctx;
       const t0 = ctx.currentTime;
       const force = Math.max(0.15, Math.min(1, intensity || 0.5));
-      const vol = (isPlayer ? 0.28 : 0.12) * force;
+      const vol = (isPlayer ? 0.42 : 0.18) * force;
 
       // Ruído curto (raspão)
       const noiseDur = 0.12;
