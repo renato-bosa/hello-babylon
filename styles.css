@@ -726,7 +726,8 @@ body {
   display: block;
 }
 
-#debugPerfBtn {
+#debugPerfBtn,
+#debugBotBenchBtn {
   display: none;
   width: 100%;
   appearance: none;
@@ -740,11 +741,18 @@ body {
   cursor: pointer;
 }
 
-#debugPerfBtn.show {
+#debugBotBenchBtn {
+  border-color: #ffb84f;
+  color: #ffb84f;
+}
+
+#debugPerfBtn.show,
+#debugBotBenchBtn.show {
   display: block;
 }
 
-#debugPerfBtn:disabled {
+#debugPerfBtn:disabled,
+#debugBotBenchBtn:disabled {
   opacity: 0.5;
   cursor: wait;
 }

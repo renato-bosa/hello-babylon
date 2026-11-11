@@ -59,6 +59,7 @@
         <button type="button" class="play-btn" id="btnStartRace">JOGAR</button>
         <p id="equippedCarLabel" class="menu-hint"></p>
         <button type="button" id="debugPerfBtn">Teste FPS (diagnóstico)</button>
+        <button type="button" id="debugBotBenchBtn">Teste Bots (4× pista)</button>
       </div>
     </div>
     <div id="garagePanel" aria-hidden="true">
@@ -220,14 +221,26 @@
 
       const debugEnabled =
         new URLSearchParams(window.location.search).get("debug") === "true";
+      const debugBotBenchBtn = document.getElementById("debugBotBenchBtn");
       if (debugEnabled) {
         debugFps.classList.add("show");
         debugPerfBtn.classList.add("show");
+        if (debugBotBenchBtn) debugBotBenchBtn.classList.add("show");
       }
       let debugFpsFrame = 0;
       let perfTestRunning = false;
       // Preenchido dentro de createScene (raízes para ligar/desligar no teste)
       let perfSceneApi = null;
+      let botBenchApi = null;
+      const botBench = {
+        active: false,
+        simSpeed: 5,
+        runsPerTrack: 4,
+        resolveRace: null,
+        trackId: null,
+        runIndex: 0,
+        rows: [],
+      };
 
       // Economia: começa em 0; 1º=+11, 2º=+7, 3º=+0
       const COIN_REWARDS = { 1: 11, 2: 7, 3: 0 };
@@ -2059,6 +2072,13 @@
 
         function assignBotCarsForRace() {
           const active = syncActiveRacers();
+          // Benchmark: carro fixo (starter) para medir personalidade, não o modelo
+          if (botBench.active) {
+            active.forEach(function (rival) {
+              rebuildRivalCar(rival, "starter");
+            });
+            return;
+          }
           const used = [];
           active.forEach(function (rival) {
             let carId = pickBotCarId(used);
@@ -2718,6 +2738,14 @@
               : raceProgressFromDistance(racer.distAlong, track);
           racer.finished = false;
           racer.finishTime = null;
+          racer.againstWall = false;
+          racer.wallHitCooldown = 0;
+          racer.bench = {
+            wallHits: 0,
+            scrapeTime: 0,
+            stuckTime: 0,
+            distTraveled: 0,
+          };
           // Ainda "antes" da linha de chegada
           racer.prevFinishSide = -1;
         }
@@ -2890,6 +2918,7 @@
         window.addEventListener("keydown", (e) => {
           if (
             raceOver &&
+            !botBench.active &&
             (e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space")
           ) {
             e.preventDefault();
@@ -3000,7 +3029,9 @@
           racer.finishTime = finishTime;
           racer.progress = 1;
           finishOrder.push(racer);
-          GameAudio.playFinish(racer.isPlayer);
+          if (!botBench.active) {
+            GameAudio.playFinish(racer.isPlayer);
+          }
           updateRankingPanel();
         }
 
@@ -3105,19 +3136,28 @@
               hitSpeed > 6 &&
               excess > 0.02
             ) {
-              const intensity = Math.min(1, hitSpeed / getRacerMaxSpeed(racer));
-              let playHit = racer.isPlayer;
-              if (!playHit) {
-                const distToPlayer = BABYLON.Vector3.Distance(
-                  player.mesh.position,
-                  racer.mesh.position
+              if (racer.bench) racer.bench.wallHits += 1;
+              if (!botBench.active) {
+                const intensity = Math.min(
+                  1,
+                  hitSpeed / getRacerMaxSpeed(racer)
                 );
-                playHit = distToPlayer < 28;
-              }
-              if (playHit) {
-                GameAudio.playWallHit(intensity, racer.isPlayer);
+                let playHit = racer.isPlayer;
+                if (!playHit) {
+                  const distToPlayer = BABYLON.Vector3.Distance(
+                    player.mesh.position,
+                    racer.mesh.position
+                  );
+                  playHit = distToPlayer < 28;
+                }
+                if (playHit) {
+                  GameAudio.playWallHit(intensity, racer.isPlayer);
+                }
               }
               racer.wallHitCooldown = 0.28;
+            }
+            if (racer.bench && hitSpeed > 4) {
+              racer.bench.scrapeTime += dt;
             }
             racer.againstWall = true;
             racer.speed *= 0.97;
@@ -3126,7 +3166,7 @@
           }
 
           // Arraste: contínuo enquanto raspa a lateral (só jogador)
-          if (racer.isPlayer) {
+          if (racer.isPlayer && !botBench.active) {
             const scrapeSpeed = Math.abs(racer.speed);
             const scraping = hittingWall && scrapeSpeed > 4;
             GameAudio.setWallScrape(
@@ -3135,6 +3175,12 @@
                 ? Math.min(1, scrapeSpeed / getRacerMaxSpeed(racer))
                 : 0
             );
+          }
+
+          if (racer.bench && !racer.finished) {
+            const absSpeed = Math.abs(racer.speed);
+            racer.bench.distTraveled += absSpeed * dt;
+            if (absSpeed < 4) racer.bench.stuckTime += dt;
           }
 
           // Segue o relevo da pista (morro suave) sem física extra
@@ -3174,7 +3220,7 @@
                       racer.mesh.position
                     ) < 35;
                 }
-                if (playCp) {
+                if (playCp && !botBench.active) {
                   GameAudio.playCheckpoint(racer.isPlayer);
                 }
                 wrapRacerToLapStart(racer);
@@ -3260,6 +3306,43 @@
           if (allRacersFinished() && !raceOver) {
             raceOver = true;
             rankingPanel.classList.remove("racing");
+
+            if (botBench.active && botBench.resolveRace) {
+              const rows = finishOrder.map(function (racer, index) {
+                const bench = racer.bench || {
+                  wallHits: 0,
+                  scrapeTime: 0,
+                  stuckTime: 0,
+                  distTraveled: 0,
+                };
+                const finishTime = racer.finishTime || raceTime;
+                return {
+                  trackId: botBench.trackId,
+                  trackName:
+                    (track.data && track.data.name) || botBench.trackId,
+                  run: botBench.runIndex,
+                  botId: racer.id,
+                  botName: racer.name,
+                  carId: racer.carModelId,
+                  place: index + 1,
+                  finishTime: finishTime,
+                  avgSpeed:
+                    finishTime > 0.1 ? bench.distTraveled / finishTime : 0,
+                  wallHits: bench.wallHits,
+                  scrapeTime: bench.scrapeTime,
+                  stuckTime: bench.stuckTime,
+                  distTraveled: bench.distTraveled,
+                };
+              });
+              botBench.rows.push.apply(botBench.rows, rows);
+              const resolve = botBench.resolveRace;
+              botBench.resolveRace = null;
+              setTimeout(function () {
+                resolve(rows);
+              }, 30);
+              return;
+            }
+
             const finalPlace = getPlayerPlace();
             const didWin = registerWinIfFirst(finalPlace);
             const reward = rewardCoinsForPlace(finalPlace);
@@ -3460,8 +3543,37 @@
             }
           }
 
+          const simDt = botBench.active ? dt * botBench.simSpeed : dt;
+
           if (!raceOver) {
-            raceTime += dt;
+            raceTime += simDt;
+          }
+
+          if (botBench.active) {
+            racers.forEach(function (rival) {
+              if (!rival.finished) {
+                applyDrive(rival, getAIInput(rival, simDt), simDt);
+              } else {
+                applyDrive(
+                  rival,
+                  { up: false, down: false, left: false, right: false },
+                  simDt
+                );
+              }
+            });
+            forceFinishStragglers();
+            // Failsafe: corrida travada demais
+            if (!raceOver && raceTime > 240) {
+              racers.forEach(function (rival) {
+                if (!rival.finished) {
+                  markRacerFinished(rival, raceTime);
+                }
+              });
+            }
+            if (racers[0] && !raceOver) {
+              camera.lockedTarget = racers[0].mesh;
+            }
+            return;
           }
 
           // Depois da chegada o jogador só desacelera (ainda pode virar)
@@ -3528,14 +3640,23 @@
           }
         });
 
-        switchTrackInScene = function (trackId) {
-          if (!inMenu || perfTestRunning || countdownActive) return false;
+        switchTrackInScene = function (trackId, options) {
+          const opts = options || {};
+          const force = !!opts.force;
+          if (
+            !force &&
+            (!inMenu || perfTestRunning || countdownActive)
+          ) {
+            return false;
+          }
           if (!window.NEON_RUSH_TRACKS || !window.NEON_RUSH_TRACKS[trackId]) {
             return false;
           }
 
-          closeGarage({ restoreCar: true });
-          closeShop({ restoreCar: true });
+          if (!force) {
+            closeGarage({ restoreCar: true });
+            closeShop({ restoreCar: true });
+          }
 
           clearTrackWorld();
           track = buildTrackFromData(window.NEON_RUSH_TRACKS[trackId]);
@@ -3545,9 +3666,79 @@
           buildTrackWorld();
           syncActiveRacers();
           placeGrid();
-          enterMenuCamera();
-          placeLabel.textContent = "Posição: 1º / " + getFieldSize();
+          if (!botBench.active) {
+            enterMenuCamera();
+            placeLabel.textContent = "Posição: 1º / " + getFieldSize();
+          }
           return true;
+        };
+
+        function beginBotBenchRace() {
+          closeGarage({ restoreCar: false });
+          closeShop({ restoreCar: false });
+          GameAudio.stopEngines();
+          assignBotCarsForRace();
+          syncActiveRacers();
+          // Só bots — jogador fora da disputa
+          racers = getActiveRivals().slice();
+          player.mesh.setEnabled(false);
+          rivals.forEach(function (rival) {
+            rival.mesh.setEnabled(racers.indexOf(rival) !== -1);
+            rival.maxSpeed = PHYSICS.maxSpeed;
+          });
+
+          inMenu = false;
+          raceTime = 0;
+          raceOver = false;
+          countdownActive = false;
+          goDisplayTimer = 0;
+          countdownOverlay.classList.remove("show");
+          mainMenu.classList.remove("show");
+          hud.classList.add("show");
+          setCanvasInteractive(false);
+          finishOrder.length = 0;
+          rankingPanel.classList.remove("show", "centered", "racing");
+          rankingHint.classList.remove("show");
+          rankingList.innerHTML = "";
+
+          placeGrid();
+          if (racers.length) {
+            camera.lockedTarget = racers[0].mesh;
+            unlockCameraFollow();
+            camera.lockedTarget = racers[0].mesh;
+            scene.activeCamera = camera;
+            setRivalVisibility(true);
+            player.mesh.setEnabled(false);
+          }
+          progressLabel.textContent =
+            "Bench " +
+            (botBench.trackId || "") +
+            " · run " +
+            botBench.runIndex +
+            "/" +
+            botBench.runsPerTrack;
+          placeLabel.textContent = "Bots: " + racers.length;
+          speedLabel.textContent = "sim ×" + botBench.simSpeed;
+        }
+
+        botBenchApi = {
+          beginRace: beginBotBenchRace,
+          switchTrack: function (trackId) {
+            window.NEON_RUSH_ACTIVE_TRACK = trackId;
+            return switchTrackInScene(trackId, { force: true });
+          },
+          getActiveTrackId: function () {
+            return window.NEON_RUSH_ACTIVE_TRACK;
+          },
+          restoreHub: function () {
+            racers = [player].concat(getActiveRivals());
+            player.mesh.setEnabled(true);
+            rivals.forEach(function (rival) {
+              rival.mesh.setEnabled(false);
+            });
+            unlockCameraFollow();
+            showMainMenu();
+          },
         };
 
         return scene;
@@ -3621,10 +3812,189 @@
         }
       }
 
+      function downloadTextFile(filename, text) {
+        const blob = new Blob([text], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function botBenchRowsToCsv(rows) {
+        const headers = [
+          "trackId",
+          "trackName",
+          "run",
+          "botId",
+          "botName",
+          "carId",
+          "place",
+          "finishTime",
+          "avgSpeed",
+          "wallHits",
+          "scrapeTime",
+          "stuckTime",
+          "distTraveled",
+        ];
+        const lines = [headers.join(",")];
+        rows.forEach(function (row) {
+          lines.push(
+            headers
+              .map(function (key) {
+                const val = row[key];
+                if (typeof val === "number") {
+                  return Number.isInteger(val) ? String(val) : val.toFixed(3);
+                }
+                return '"' + String(val).replace(/"/g, '""') + '"';
+              })
+              .join(",")
+          );
+        });
+        return lines.join("\n");
+      }
+
+      function formatBotBenchSummary(rows) {
+        let text = "TESTE BOTS — 4× por pista (carro starter, sim ×5)\n\n";
+        const byKey = {};
+        rows.forEach(function (row) {
+          const key = row.trackId + "|" + row.botName;
+          if (!byKey[key]) {
+            byKey[key] = {
+              trackName: row.trackName,
+              botName: row.botName,
+              times: [],
+              places: [],
+              wallHits: [],
+              scrape: [],
+              stuck: [],
+            };
+          }
+          byKey[key].times.push(row.finishTime);
+          byKey[key].places.push(row.place);
+          byKey[key].wallHits.push(row.wallHits);
+          byKey[key].scrape.push(row.scrapeTime);
+          byKey[key].stuck.push(row.stuckTime);
+        });
+
+        function avg(arr) {
+          if (!arr.length) return 0;
+          return (
+            arr.reduce(function (a, b) {
+              return a + b;
+            }, 0) / arr.length
+          );
+        }
+
+        const keys = Object.keys(byKey).sort();
+        let currentTrack = "";
+        keys.forEach(function (key) {
+          const g = byKey[key];
+          if (g.trackName !== currentTrack) {
+            currentTrack = g.trackName;
+            text += "— " + currentTrack + " —\n";
+          }
+          text +=
+            "  " +
+            g.botName +
+            ": tempo " +
+            avg(g.times).toFixed(1) +
+            "s | lugar " +
+            avg(g.places).toFixed(2) +
+            " | paredes " +
+            avg(g.wallHits).toFixed(1) +
+            " | raspa " +
+            avg(g.scrape).toFixed(1) +
+            "s | stuck " +
+            avg(g.stuck).toFixed(1) +
+            "s\n";
+        });
+        text += "\nCSV baixado. Use para fine-tuning (lookAhead, curveCaution, mistakes...).";
+        return text;
+      }
+
+      async function runBotBenchmark() {
+        if (!debugEnabled || !botBenchApi || perfTestRunning) return;
+        perfTestRunning = true;
+        botBench.active = true;
+        botBench.rows = [];
+        if (debugPerfBtn) debugPerfBtn.disabled = true;
+        if (debugBotBenchBtn) debugBotBenchBtn.disabled = true;
+        btnStartRace.disabled = true;
+        debugPerfReport.classList.add("show");
+        debugPerfReport.textContent = "Iniciando teste de bots...\n";
+
+        const savedTrack = botBenchApi.getActiveTrackId();
+        const trackIds = Object.keys(window.NEON_RUSH_TRACKS || {});
+
+        try {
+          for (let t = 0; t < trackIds.length; t++) {
+            const trackId = trackIds[t];
+            botBench.trackId = trackId;
+            botBenchApi.switchTrack(trackId);
+            await new Promise(function (r) {
+              setTimeout(r, 200);
+            });
+
+            for (let run = 1; run <= botBench.runsPerTrack; run++) {
+              botBench.runIndex = run;
+              debugPerfReport.textContent =
+                "Bench: " +
+                trackId +
+                " · corrida " +
+                run +
+                "/" +
+                botBench.runsPerTrack +
+                "\n(aguarde — simulação acelerada ×" +
+                botBench.simSpeed +
+                ")";
+
+              await new Promise(function (resolve) {
+                botBench.resolveRace = resolve;
+                botBenchApi.beginRace();
+              });
+
+              await new Promise(function (r) {
+                setTimeout(r, 80);
+              });
+            }
+          }
+
+          const csv = botBenchRowsToCsv(botBench.rows);
+          downloadTextFile(
+            "neon-rush-bot-bench-" + Date.now() + ".csv",
+            csv
+          );
+          const summary = formatBotBenchSummary(botBench.rows);
+          debugPerfReport.textContent = summary;
+          console.log("[BOT BENCH]\n" + summary);
+          console.log("[BOT BENCH] CSV rows", botBench.rows);
+        } catch (err) {
+          console.error("[BOT BENCH] Erro", err);
+          debugPerfReport.textContent =
+            "Erro no teste de bots.\n" + String(err);
+        } finally {
+          botBench.active = false;
+          botBench.resolveRace = null;
+          if (savedTrack) botBenchApi.switchTrack(savedTrack);
+          botBenchApi.restoreHub();
+          perfTestRunning = false;
+          if (debugPerfBtn) debugPerfBtn.disabled = false;
+          if (debugBotBenchBtn) debugBotBenchBtn.disabled = false;
+          btnStartRace.disabled = false;
+        }
+      }
+
       if (debugEnabled) {
         debugPerfBtn.addEventListener("click", function () {
           runFpsDiagnostic();
         });
+        if (debugBotBenchBtn) {
+          debugBotBenchBtn.addEventListener("click", function () {
+            runBotBenchmark();
+          });
+        }
       }
 
       engine.runRenderLoop(function () {
