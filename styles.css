@@ -602,16 +602,23 @@ body {
   pointer-events: none;
   user-select: none;
   transform: translate(0, 0);
+  opacity: 1;
   transition:
     right 0.55s cubic-bezier(0.22, 1, 0.36, 1),
     top 0.55s cubic-bezier(0.22, 1, 0.36, 1),
     transform 0.55s cubic-bezier(0.22, 1, 0.36, 1),
     min-width 0.55s ease,
-    box-shadow 0.55s ease;
+    box-shadow 0.55s ease,
+    opacity 0.35s ease;
 }
 
 #rankingPanel.show {
   display: block;
+}
+
+/* Ainda correndo: ranking discreto no canto */
+#rankingPanel.show.racing {
+  opacity: 0.25;
 }
 
 #rankingPanel.centered {
@@ -620,6 +627,7 @@ body {
   min-width: min(360px, 86vw);
   transform: translate(50%, -50%);
   box-shadow: 0 0 40px rgba(255, 79, 216, 0.45);
+  opacity: 1;
 }
 
 #rankingPanel h2 {

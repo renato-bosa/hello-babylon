@@ -10,15 +10,15 @@
     name: "Natal Race",
 
     controlPoints: [
-      // --- Antes da largada ---
+      // --- Antes da largada (reta contínua) ---
       [0, 0, -100],
       [0, 0, -50],
 
       // --- Largada ---
       [0, 0, 0],
-
-      // --- Trecho longo e festivo ---
       [0, 0, 60],
+
+      // --- Curvas (sem “quebras” artificiais na reta) ---
       [25, 0, 120],
       [55, 0, 180],
       [40, 0, 250],
@@ -37,11 +37,10 @@
       [5, 0, 1160],
       [40, 0, 1220],
       [20, 0, 1280],
+      [5, 0, 1310],
 
-      // --- Chegada ---
+      // --- Chegada (reta alinhada) ---
       [0, 0, 1340],
-
-      // --- Depois ---
       [0, 0, 1390],
       [0, 0, 1450],
       [0, 0, 1510],

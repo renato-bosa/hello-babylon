@@ -3,6 +3,8 @@
  * - Motor de cada carro (jogador + rivais)
  * - Bips da contagem 3-2-1-VAI!
  * - Som ao cruzar a linha de chegada
+ * - Batida na lateral da pista
+ * - Checkpoint de volta
  */
 (function (global) {
   const AudioCtx = global.AudioContext || global.webkitAudioContext;
@@ -57,6 +59,10 @@
       player: { baseFreq: 34, maxVol: 0.15 },
       rivalA: { baseFreq: 33, maxVol: 0.1 },
       rivalB: { baseFreq: 35, maxVol: 0.1 },
+      rivalC: { baseFreq: 32, maxVol: 0.09 },
+      rivalD: { baseFreq: 36, maxVol: 0.09 },
+      rivalE: { baseFreq: 31, maxVol: 0.085 },
+      rivalF: { baseFreq: 37, maxVol: 0.085 },
     },
 
     unlock: function () {
@@ -158,6 +164,81 @@
         osc.start(t0);
         osc.stop(t0 + 0.25);
       }
+    },
+
+    /** Impacto curto ao bater na lateral */
+    playWallHit: function (intensity, isPlayer) {
+      if (!this.ctx) return;
+      const ctx = this.ctx;
+      const t0 = ctx.currentTime;
+      const force = Math.max(0.15, Math.min(1, intensity || 0.5));
+      const vol = (isPlayer ? 0.28 : 0.12) * force;
+
+      // Ruído curto (raspão)
+      const noiseDur = 0.12;
+      const buffer = ctx.createBuffer(
+        1,
+        Math.floor(ctx.sampleRate * noiseDur),
+        ctx.sampleRate
+      );
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+      }
+      const noise = ctx.createBufferSource();
+      noise.buffer = buffer;
+      const noiseFilter = ctx.createBiquadFilter();
+      noiseFilter.type = "bandpass";
+      noiseFilter.frequency.value = 420 + force * 380;
+      noiseFilter.Q.value = 0.8;
+      const noiseGain = ctx.createGain();
+      noise.connect(noiseFilter);
+      noiseFilter.connect(noiseGain);
+      noiseGain.connect(this.master);
+      noiseGain.gain.setValueAtTime(0.0001, t0);
+      noiseGain.gain.exponentialRampToValueAtTime(vol, t0 + 0.008);
+      noiseGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.11);
+      noise.start(t0);
+      noise.stop(t0 + noiseDur);
+
+      // Thump grave
+      const osc = ctx.createOscillator();
+      const oscGain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(120 + force * 40, t0);
+      osc.frequency.exponentialRampToValueAtTime(55, t0 + 0.1);
+      osc.connect(oscGain);
+      oscGain.connect(this.master);
+      oscGain.gain.setValueAtTime(0.0001, t0);
+      oscGain.gain.exponentialRampToValueAtTime(vol * 0.85, t0 + 0.01);
+      oscGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.14);
+      osc.start(t0);
+      osc.stop(t0 + 0.16);
+    },
+
+    /** Blip de checkpoint ao completar uma volta (não a chegada final) */
+    playCheckpoint: function (isPlayer) {
+      if (!this.ctx) return;
+      const ctx = this.ctx;
+      const t0 = ctx.currentTime;
+      const vol = isPlayer ? 0.2 : 0.1;
+      const notes = isPlayer ? [880, 1174.66] : [740, 988];
+
+      notes.forEach(function (freq, i) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "triangle";
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(GameAudio.master);
+
+        const start = t0 + i * 0.07;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(vol, start + 0.015);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
+        osc.start(start);
+        osc.stop(start + 0.18);
+      });
     },
 
     /** Fanfarra curta ao cruzar a chegada */

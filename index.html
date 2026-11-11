@@ -10,6 +10,7 @@
     <script src="tracks/tunnel-rush.js"></script>
     <script src="tracks/praia-rush.js"></script>
     <script src="tracks/natal-race.js"></script>
+    <script src="tracks/neon-oval.js"></script>
     <script src="cars/catalog.js"></script>
     <script src="cars/models.js"></script>
     <script src="audio.js"></script>
@@ -332,6 +333,19 @@
 
       function getRacerMaxSpeed(racer) {
         return racer.maxSpeed != null ? racer.maxSpeed : PHYSICS.maxSpeed;
+      }
+
+      function getActiveLaneLimit() {
+        const id = window.NEON_RUSH_ACTIVE_TRACK;
+        const data =
+          window.NEON_RUSH_TRACKS && id ? window.NEON_RUSH_TRACKS[id] : null;
+        const feat = data && data.features;
+        if (feat && typeof feat.laneLimit === "number") return feat.laneLimit;
+        // Até perto da faixa neon da beira (metade da pista − folga do carro)
+        if (feat && typeof feat.roadWidth === "number") {
+          return feat.roadWidth * 0.5 - 1;
+        }
+        return PHYSICS.laneLimit;
       }
 
       const keys = {
@@ -740,6 +754,24 @@
         return data;
       }
 
+      // Em ovais o mesmo XZ aparece 2x; busca a partir de minDist (evita chegada de 1s)
+      function findDistNearPoint(path3D, target, minDist) {
+        const total = path3D.length();
+        const startAt = Math.max(0, Math.min(total - 1, minDist || 0));
+        let bestD = startAt;
+        let bestScore = Infinity;
+        const step = Math.max(1, total / 400);
+        for (let d = startAt; d <= total; d += step) {
+          const p = path3D.getPointAt(Math.max(0, Math.min(1, d / total)));
+          const score = BABYLON.Vector3.DistanceSquared(p, target);
+          if (score < bestScore) {
+            bestScore = score;
+            bestD = d;
+          }
+        }
+        return bestD;
+      }
+
       function buildTrackFromData(trackData) {
         const controls = trackData.controlPoints.map(function (p) {
           return new BABYLON.Vector3(p[0], p[1], p[2]);
@@ -761,12 +793,18 @@
           trackData.finishPoint[2]
         );
 
-        const startDist = path3D.getDistanceAt(
-          path3D.getClosestPositionTo(startPos)
+        const startDist = findDistNearPoint(path3D, startPos, 0);
+        const finishDist = findDistNearPoint(
+          path3D,
+          finishPos,
+          startDist + 80
         );
-        const finishDist = path3D.getDistanceAt(
-          path3D.getClosestPositionTo(finishPos)
-        );
+        const lapLength = Math.max(1, finishDist - startDist);
+        const feats = trackData.features || {};
+        const totalLaps =
+          typeof feats.laps === "number" && feats.laps > 1
+            ? Math.floor(feats.laps)
+            : 1;
 
         return {
           data: trackData,
@@ -774,20 +812,32 @@
           trackLength: path3D.length(),
           startDist: startDist,
           finishDist: finishDist,
-          raceLength: Math.max(1, finishDist - startDist),
+          lapLength: lapLength,
+          totalLaps: totalLaps,
+          raceLength: lapLength * totalLaps,
         };
+      }
+
+      // Lateral estável no plano XZ (Y-up). O binormal do Path3D pode
+      // flipar em retas longas (ex.: início da Natal Race) e empurrar o carro.
+      function lateralFromTangent(tangent) {
+        const side = new BABYLON.Vector3(tangent.z, 0, -tangent.x);
+        const len = side.length();
+        if (len < 1e-5) return new BABYLON.Vector3(1, 0, 0);
+        return side.scaleInPlace(1 / len);
       }
 
       function samplePath(path3D, distance) {
         const total = path3D.length();
         const t = Math.max(0, Math.min(1, distance / total));
+        const tangent = path3D.getTangentAt(t).normalize();
         return {
           total,
           t,
           position: path3D.getPointAt(t),
-          tangent: path3D.getTangentAt(t).normalize(),
+          tangent: tangent,
           normal: path3D.getNormalAt(t).normalize(),
-          binormal: path3D.getBinormalAt(t).normalize(),
+          binormal: lateralFromTangent(tangent),
         };
       }
 
@@ -807,6 +857,26 @@
         return path3D.getDistanceAt(path3D.getClosestPositionTo(worldPos));
       }
 
+      // Oval: evita pular da largada para a chegada (mesmo XZ no loop)
+      function distanceAlongPathHinted(path3D, worldPos, hintDist, back, fwd) {
+        const total = path3D.length();
+        const hint = Math.max(0, Math.min(total, hintDist || 0));
+        const lo = Math.max(0, hint - (back || 30));
+        const hi = Math.min(total, hint + (fwd || 100));
+        let bestD = hint;
+        let best = Infinity;
+        const step = 2;
+        for (let d = lo; d <= hi; d += step) {
+          const p = path3D.getPointAt(Math.max(0, Math.min(1, d / total)));
+          const score = BABYLON.Vector3.DistanceSquared(p, worldPos);
+          if (score < best) {
+            best = score;
+            bestD = d;
+          }
+        }
+        return bestD;
+      }
+
       function raceProgressFromDistance(distAlong, track) {
         return Math.max(
           0,
@@ -814,8 +884,24 @@
         );
       }
 
-      function createRoadPiece(scene, sample, roadMat, edgeMat, index) {
+      function raceProgressFromLaps(racer, track) {
+        const local = Math.max(
+          0,
+          Math.min(
+            0.999,
+            (racer.distAlong - track.startDist) / track.lapLength
+          )
+        );
+        return Math.max(
+          0,
+          Math.min(1, (racer.lapsCompleted + local) / track.totalLaps)
+        );
+      }
+
+      function createRoadPiece(scene, sample, roadMat, edgeMat, index, roadWidth) {
         const pieceLength = 8;
+        const width = roadWidth || 14;
+        const half = width / 2;
         const group = new BABYLON.TransformNode("roadPiece_" + index, scene);
         group.position.copyFrom(sample.position);
         group.rotation.y = yawFromTangent(sample.tangent);
@@ -823,7 +909,7 @@
 
         const road = BABYLON.MeshBuilder.CreateGround(
           "road_" + index,
-          { width: 14, height: pieceLength },
+          { width: width, height: pieceLength },
           scene
         );
         road.material = roadMat;
@@ -834,7 +920,7 @@
           { width: 0.25, height: 0.2, depth: pieceLength },
           scene
         );
-        leftEdge.position.set(-7, 0.1, 0);
+        leftEdge.position.set(-half, 0.1, 0);
         leftEdge.material = edgeMat;
         leftEdge.parent = group;
 
@@ -843,7 +929,7 @@
           { width: 0.25, height: 0.2, depth: pieceLength },
           scene
         );
-        rightEdge.position.set(7, 0.1, 0);
+        rightEdge.position.set(half, 0.1, 0);
         rightEdge.material = edgeMat;
         rightEdge.parent = group;
 
@@ -856,6 +942,72 @@
         dash.material = edgeMat;
         dash.parent = group;
 
+        return group;
+      }
+
+      function createOvalGrandstand(scene, sample, dir, roadHalf, id, mats) {
+        const group = new BABYLON.TransformNode("ovalStand_" + id, scene);
+        group.position.copyFrom(sample.position);
+        group.rotation.y = yawFromTangent(sample.tangent);
+        group.rotation.x = pitchFromTangent(sample.tangent);
+
+        // Berma inclinada (só visual)
+        const berm = BABYLON.MeshBuilder.CreateBox(
+          "ovalBerm_" + id,
+          { width: 7.5, height: 3.2, depth: 9 },
+          scene
+        );
+        berm.position.set(dir * (roadHalf + 4.0), 1.2, 0);
+        berm.rotation.z = dir * -0.42;
+        berm.material = mats.berm;
+        berm.parent = group;
+
+        // Muro alto — tapa o horizonte
+        const wall = BABYLON.MeshBuilder.CreateBox(
+          "ovalWall_" + id,
+          { width: 1.6, height: 10, depth: 9 },
+          scene
+        );
+        wall.position.set(dir * (roadHalf + 8.8), 4.6, 0);
+        wall.material = mats.wall;
+        wall.parent = group;
+
+        // Degraus de arquibancada
+        const seat = BABYLON.MeshBuilder.CreateBox(
+          "ovalSeat_" + id,
+          { width: 4.5, height: 0.35, depth: 8.6 },
+          scene
+        );
+        seat.position.set(dir * (roadHalf + 5.5), 2.6, 0);
+        seat.material = mats.seat;
+        seat.parent = group;
+
+        const neon = BABYLON.MeshBuilder.CreateBox(
+          "ovalNeon_" + id,
+          { width: 0.35, height: 0.35, depth: 9 },
+          scene
+        );
+        neon.position.set(dir * (roadHalf + 8.8), 9.7, 0);
+        neon.material = mats.neon;
+        neon.parent = group;
+
+        return group;
+      }
+
+      function createOvalInnerCurb(scene, sample, dir, roadHalf, id, mats) {
+        const group = new BABYLON.TransformNode("ovalCurb_" + id, scene);
+        group.position.copyFrom(sample.position);
+        group.rotation.y = yawFromTangent(sample.tangent);
+        group.rotation.x = pitchFromTangent(sample.tangent);
+
+        const curb = BABYLON.MeshBuilder.CreateBox(
+          "ovalCurbMesh_" + id,
+          { width: 0.9, height: 0.4, depth: 8.5 },
+          scene
+        );
+        curb.position.set(dir * (roadHalf + 0.55), 0.18, 0);
+        curb.material = mats.neon;
+        curb.parent = group;
         return group;
       }
 
@@ -982,8 +1134,10 @@
 
       let finishLineSerial = 0;
 
-      function createFinishLine(scene, sample) {
+      function createFinishLine(scene, sample, roadWidth) {
         const sid = finishLineSerial++;
+        const width = roadWidth || 14;
+        const half = width / 2;
         const gate = new BABYLON.TransformNode("finishGate_" + sid, scene);
         gate.position.copyFrom(sample.position);
         gate.rotation.y = yawFromTangent(sample.tangent);
@@ -1013,7 +1167,7 @@
           { width: 0.4, height: 6, depth: 0.4 },
           scene
         );
-        leftPost.position.set(-7, 3, 0);
+        leftPost.position.set(-half, 3, 0);
         leftPost.material = pink;
         leftPost.parent = gate;
 
@@ -1022,7 +1176,7 @@
           { width: 0.4, height: 6, depth: 0.4 },
           scene
         );
-        rightPost.position.set(7, 3, 0);
+        rightPost.position.set(half, 3, 0);
         rightPost.material = cyan;
         rightPost.parent = gate;
 
@@ -1062,22 +1216,29 @@
         // Sem segunda placa: evita flicker. Sem culling: continua visível na aproximação.
         bannerMat.backFaceCulling = false;
 
+        const bannerWidth = Math.max(12, width - 2);
         const banner = BABYLON.MeshBuilder.CreatePlane(
           "finishBanner_" + sid,
-          { width: 12, height: 1.6 },
+          { width: bannerWidth, height: 1.6 },
           scene
         );
         banner.position.set(0, 5.4, 0);
         banner.material = bannerMat;
         banner.parent = gate;
 
-        for (let i = 0; i < 8; i++) {
+        const stripeCount = Math.max(8, Math.round(width / 1.75));
+        const stripeWidth = width / stripeCount;
+        for (let i = 0; i < stripeCount; i++) {
           const stripe = BABYLON.MeshBuilder.CreateBox(
             "finishStripe_" + sid + "_" + i,
-            { width: 1.6, height: 0.06, depth: 1.2 },
+            { width: stripeWidth * 0.92, height: 0.06, depth: 1.2 },
             scene
           );
-          stripe.position.set(-6.3 + i * 1.8, 0.04, 0);
+          stripe.position.set(
+            -half + stripeWidth * (i + 0.5),
+            0.04,
+            0
+          );
           stripe.material = i % 2 === 0 ? white : pink;
           stripe.parent = gate;
         }
@@ -1281,7 +1442,7 @@
         const scene = new BABYLON.Scene(engine);
         scene.clearColor = new BABYLON.Color4(0.02, 0.01, 0.08, 1);
         scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-        scene.fogDensity = 0.012;
+        scene.fogDensity = 0.006;
         scene.fogColor = new BABYLON.Color3(0.04, 0.02, 0.1);
 
         const hemi = new BABYLON.HemisphericLight(
@@ -1429,6 +1590,7 @@
               );
             }
           } else {
+            const roadWidth = features.roadWidth || 14;
             for (let d = 0; d < trackLength; d += step) {
               roadPieces.push(
                 createRoadPiece(
@@ -1436,14 +1598,19 @@
                   samplePath(path3D, d),
                   roadMat,
                   edgeMat,
-                  pieceIndex++
+                  pieceIndex++,
+                  roadWidth
                 )
               );
             }
           }
 
           finishSample = samplePath(path3D, track.finishDist);
-          finishGate = createFinishLine(scene, finishSample);
+          finishGate = createFinishLine(
+            scene,
+            finishSample,
+            features.roadWidth || 14
+          );
 
           const tunnel = getTunnelRange();
 
@@ -1492,6 +1659,91 @@
                 oceanMat
               )
             );
+          }
+
+          // Oval speedway: arquibancada/muro visual + gramado interno
+          if (features.ovalArena) {
+            const roadWidth = features.roadWidth || 28;
+            const roadHalf = roadWidth / 2;
+            const bermMat = new BABYLON.StandardMaterial("ovalBermMat", scene);
+            bermMat.diffuseColor = new BABYLON.Color3(0.22, 0.14, 0.1);
+            bermMat.emissiveColor = new BABYLON.Color3(0.1, 0.05, 0.03);
+            const wallMat = new BABYLON.StandardMaterial("ovalWallMat", scene);
+            wallMat.diffuseColor = new BABYLON.Color3(0.08, 0.09, 0.14);
+            wallMat.emissiveColor = new BABYLON.Color3(0.05, 0.06, 0.1);
+            const seatMat = new BABYLON.StandardMaterial("ovalSeatMat", scene);
+            seatMat.diffuseColor = new BABYLON.Color3(0.35, 0.12, 0.1);
+            seatMat.emissiveColor = new BABYLON.Color3(0.18, 0.05, 0.04);
+            const ovalMats = {
+              berm: bermMat,
+              wall: wallMat,
+              seat: seatMat,
+              neon: edgeMat,
+            };
+
+            let cx = 0;
+            let cz = 0;
+            let samples = 0;
+            for (let d = 0; d < trackLength; d += 18) {
+              const p = path3D.getPointAt(
+                Math.max(0, Math.min(1, d / trackLength))
+              );
+              cx += p.x;
+              cz += p.z;
+              samples += 1;
+            }
+            cx /= Math.max(1, samples);
+            cz /= Math.max(1, samples);
+            const center = new BABYLON.Vector3(cx, 0, cz);
+
+            const infieldMat = new BABYLON.StandardMaterial(
+              "ovalInfieldMat",
+              scene
+            );
+            infieldMat.diffuseColor = new BABYLON.Color3(0.08, 0.16, 0.1);
+            infieldMat.emissiveColor = new BABYLON.Color3(0.03, 0.08, 0.04);
+            const infield = BABYLON.MeshBuilder.CreateGround(
+              "ovalInfield",
+              { width: 150, height: 240 },
+              scene
+            );
+            infield.position.set(cx, -0.05, cz);
+            infield.material = infieldMat;
+            beachProps.push(infield);
+
+            let standId = 0;
+            // Arquibancada nos dois lados (bowl) — sempre visível
+            for (let d = 0; d < trackLength; d += step) {
+              const sample = samplePath(path3D, d);
+              [-1, 1].forEach(function (dir) {
+                beachProps.push(
+                  createOvalGrandstand(
+                    scene,
+                    sample,
+                    dir,
+                    roadHalf,
+                    standId++,
+                    ovalMats
+                  )
+                );
+              });
+            }
+
+            // Prédios atrás do muro (fora do bowl)
+            let buildingId = 0;
+            for (let d = 20; d < trackLength; d += 28) {
+              const sample = samplePath(path3D, d);
+              const side = sample.binormal;
+              [-1, 1].forEach(function (dir) {
+                const pos = sample.position.add(
+                  side.scale(dir * (roadHalf + 18 + (buildingId % 3)))
+                );
+                buildingGroups.push(
+                  createBuilding(scene, pos, neonColors, buildingId++)
+                );
+              });
+            }
+            return;
           }
 
           if (features.noBuildings) {
@@ -1559,6 +1811,7 @@
               road[2]
             );
           }
+          scene.fogDensity = 0.006;
         }
 
         buildTrackWorld();
@@ -1588,6 +1841,10 @@
             speed: 0,
             progress: 0,
             distAlong: 0,
+            lapsCompleted: 0,
+            lapArmed: false,
+            pathHint: 0,
+            wallHitCooldown: 0,
             finished: false,
             finishTime: null,
             prevFinishSide: -1,
@@ -1614,12 +1871,10 @@
           null
         );
 
-        const rivalA = makeRacer(
-          "rivalA",
-          "Nova",
-          "starter",
-          false,
+        const RIVAL_DEFS = [
           {
+            id: "rivalA",
+            name: "Nova",
             preferredLane: -2.4,
             lookAhead: 16,
             steerDeadzone: 0.16,
@@ -1628,15 +1883,10 @@
             wobbleSpeed: 1.7,
             wobblePhase: 0.4,
             mistakeChance: 0.012,
-          }
-        );
-
-        const rivalB = makeRacer(
-          "rivalB",
-          "Echo",
-          "starter",
-          false,
+          },
           {
+            id: "rivalB",
+            name: "Echo",
             preferredLane: 2.4,
             lookAhead: 20,
             steerDeadzone: 0.14,
@@ -1645,10 +1895,94 @@
             wobbleSpeed: 1.2,
             wobblePhase: 2.1,
             mistakeChance: 0.008,
-          }
-        );
+          },
+          {
+            id: "rivalC",
+            name: "Blaze",
+            preferredLane: -5.5,
+            lookAhead: 18,
+            steerDeadzone: 0.15,
+            curveCaution: 0.16,
+            wobbleAmount: 1.1,
+            wobbleSpeed: 1.4,
+            wobblePhase: 1.1,
+            mistakeChance: 0.01,
+          },
+          {
+            id: "rivalD",
+            name: "Volt",
+            preferredLane: 5.5,
+            lookAhead: 17,
+            steerDeadzone: 0.15,
+            curveCaution: 0.14,
+            wobbleAmount: 1.2,
+            wobbleSpeed: 1.5,
+            wobblePhase: 2.8,
+            mistakeChance: 0.011,
+          },
+          {
+            id: "rivalE",
+            name: "Ghost",
+            preferredLane: -8.5,
+            lookAhead: 19,
+            steerDeadzone: 0.13,
+            curveCaution: 0.18,
+            wobbleAmount: 0.8,
+            wobbleSpeed: 1.1,
+            wobblePhase: 0.7,
+            mistakeChance: 0.009,
+          },
+          {
+            id: "rivalF",
+            name: "Spark",
+            preferredLane: 8.5,
+            lookAhead: 15,
+            steerDeadzone: 0.17,
+            curveCaution: 0.11,
+            wobbleAmount: 1.5,
+            wobbleSpeed: 1.8,
+            wobblePhase: 3.3,
+            mistakeChance: 0.013,
+          },
+        ];
 
-        const racers = [player, rivalA, rivalB];
+        const rivals = RIVAL_DEFS.map(function (def) {
+          return makeRacer(def.id, def.name, "starter", false, def);
+        });
+        rivals.forEach(function (rival) {
+          rival.mesh.setEnabled(false);
+        });
+
+        let racers = [player].concat(rivals.slice(0, 2));
+
+        function getTrackBotCount() {
+          const feat = track.data && track.data.features;
+          if (feat && typeof feat.botCount === "number" && feat.botCount > 0) {
+            return Math.min(rivals.length, Math.floor(feat.botCount));
+          }
+          return 2;
+        }
+
+        function getActiveRivals() {
+          return rivals.slice(0, getTrackBotCount());
+        }
+
+        function syncActiveRacers() {
+          const active = getActiveRivals();
+          racers = [player].concat(active);
+          rivals.forEach(function (rival, i) {
+            const on = i < active.length;
+            if (!on) {
+              rival.mesh.setEnabled(false);
+              rival.speed = 0;
+            }
+          });
+          return active;
+        }
+
+        function getFieldSize() {
+          return 1 + getTrackBotCount();
+        }
 
         // Bots: qualquer carro do catálogo, com peso por raridade
         const BOT_RARITY_WEIGHTS = {
@@ -1719,11 +2053,14 @@
         }
 
         function assignBotCarsForRace() {
-          const carA = pickBotCarId();
-          let carB = pickBotCarId([carA]);
-          if (!carB) carB = pickBotCarId();
-          rebuildRivalCar(rivalA, carA);
-          rebuildRivalCar(rivalB, carB);
+          const active = syncActiveRacers();
+          const used = [];
+          active.forEach(function (rival) {
+            let carId = pickBotCarId(used);
+            if (!carId) carId = pickBotCarId();
+            used.push(carId);
+            rebuildRivalCar(rival, carId);
+          });
         }
 
         let garagePreviewId = null;
@@ -2291,8 +2628,12 @@
         }
 
         function setRivalVisibility(visible) {
-          rivalA.mesh.setEnabled(visible);
-          rivalB.mesh.setEnabled(visible);
+          getActiveRivals().forEach(function (rival) {
+            rival.mesh.setEnabled(visible);
+          });
+          rivals.slice(getTrackBotCount()).forEach(function (rival) {
+            rival.mesh.setEnabled(false);
+          });
         }
 
         function getHubSpinY() {
@@ -2362,17 +2703,45 @@
           racer.mesh.rotation.z = 0;
           racer.speed = 0;
           racer.distAlong = distanceAlongPath(path3D, racer.mesh.position);
-          racer.progress = raceProgressFromDistance(racer.distAlong, track);
+          racer.lapsCompleted = 0;
+          racer.lapArmed = false;
+          racer.pathHint = racer.distAlong;
+          racer.progress =
+            track.totalLaps > 1
+              ? raceProgressFromLaps(racer, track)
+              : raceProgressFromDistance(racer.distAlong, track);
           racer.finished = false;
           racer.finishTime = null;
           // Ainda "antes" da linha de chegada
           racer.prevFinishSide = -1;
         }
 
+        function wrapRacerToLapStart(racer) {
+          const sampleNow = samplePath(
+            path3D,
+            racer.pathHint != null ? racer.pathHint : racer.distAlong
+          );
+          const lateral = BABYLON.Vector3.Dot(
+            racer.mesh.position.subtract(sampleNow.position),
+            sampleNow.binormal
+          );
+          const sample = samplePath(path3D, track.startDist + 3);
+          racer.mesh.position.copyFrom(
+            sample.position.add(sample.binormal.scale(lateral))
+          );
+          racer.mesh.rotation.y = yawFromTangent(sample.tangent);
+          racer.mesh.rotation.x = pitchFromTangent(sample.tangent);
+          racer.distAlong = track.startDist + 3;
+          racer.pathHint = track.startDist + 3;
+          racer.lapArmed = false;
+          racer.prevFinishSide = 1;
+        }
+
         function placeGrid() {
           placeRacer(player, track.startDist, 0);
-          placeRacer(rivalA, track.startDist, -2.4);
-          placeRacer(rivalB, track.startDist, 2.4);
+          getActiveRivals().forEach(function (rival) {
+            placeRacer(rival, track.startDist, rival.preferredLane || 0);
+          });
         }
 
         function showMainMenu() {
@@ -2383,7 +2752,7 @@
           GameAudio.stopEngines();
           player.maxSpeed = PHYSICS.maxSpeed;
           finishOrder.length = 0;
-          rankingPanel.classList.remove("show", "centered");
+          rankingPanel.classList.remove("show", "centered", "racing");
           rankingHint.classList.remove("show");
           rankingList.innerHTML = "";
           countdownOverlay.classList.remove("show");
@@ -2391,7 +2760,7 @@
           mainMenu.classList.add("show");
           setCanvasInteractive(false);
           progressLabel.textContent = "Progresso: 0%";
-          placeLabel.textContent = "Posição: 1º / 3";
+          placeLabel.textContent = "Posição: 1º / " + getFieldSize();
           speedLabel.textContent = "Velocidade: 0";
           refreshAccountStats();
           enterMenuCamera();
@@ -2426,8 +2795,9 @@
           } else {
             player.maxSpeed = PHYSICS.maxSpeed;
           }
-          rivalA.maxSpeed = PHYSICS.maxSpeed;
-          rivalB.maxSpeed = PHYSICS.maxSpeed;
+          getActiveRivals().forEach(function (rival) {
+            rival.maxSpeed = PHYSICS.maxSpeed;
+          });
 
           inMenu = false;
           raceTime = 0;
@@ -2438,11 +2808,11 @@
           placeGrid();
           enterRaceCamera();
           finishOrder.length = 0;
-          rankingPanel.classList.remove("show", "centered");
+          rankingPanel.classList.remove("show", "centered", "racing");
           rankingHint.classList.remove("show");
           rankingList.innerHTML = "";
           progressLabel.textContent = "Progresso: 0%";
-          placeLabel.textContent = "Posição: 1º / 3";
+          placeLabel.textContent = "Posição: 1º / " + getFieldSize();
           speedLabel.textContent = "Velocidade: 0";
           startCountdown();
         }
@@ -2553,15 +2923,28 @@
           }
         });
 
+        syncActiveRacers();
         showMainMenu();
 
         function getAIInput(racer, dt) {
-          const t = path3D.getClosestPositionTo(racer.mesh.position);
-          // Após a chegada, ainda mira o trecho extra da pista
-          const lookT = Math.min(1, t + racer.lookAhead / trackLength);
+          let distNow;
+          if (track.totalLaps > 1) {
+            distNow =
+              racer.pathHint != null ? racer.pathHint : racer.distAlong;
+          } else {
+            distNow = path3D.getDistanceAt(
+              path3D.getClosestPositionTo(racer.mesh.position)
+            );
+          }
+          const lookDist = Math.min(
+            trackLength - 1,
+            distNow + racer.lookAhead
+          );
+          const sampleNow = samplePath(path3D, distNow);
+          const sampleLook = samplePath(path3D, lookDist);
 
-          const tanNow = path3D.getTangentAt(t).normalize();
-          const tanAhead = path3D.getTangentAt(lookT).normalize();
+          const tanNow = sampleNow.tangent;
+          const tanAhead = sampleLook.tangent;
           const bend = 1 - BABYLON.Vector3.Dot(tanNow, tanAhead);
 
           const laneOffset =
@@ -2569,9 +2952,9 @@
             Math.sin(raceTime * racer.wobbleSpeed + racer.wobblePhase) *
               racer.wobbleAmount;
 
-          const target = path3D
-            .getPointAt(lookT)
-            .add(path3D.getBinormalAt(lookT).normalize().scale(laneOffset));
+          const target = sampleLook.position.add(
+            sampleLook.binormal.scale(laneOffset)
+          );
 
           const toTarget = target.subtract(racer.mesh.position);
           const desiredYaw = Math.atan2(toTarget.x, toTarget.z);
@@ -2633,6 +3016,9 @@
         }
 
         function applyDrive(racer, input, dt) {
+          if (racer.wallHitCooldown > 0) {
+            racer.wallHitCooldown -= dt;
+          }
           // Após cruzar a chegada: não acelera mais, só desacelera e pode virar
           const coasting = racer.finished;
           const throttleUp = !coasting && input.up;
@@ -2675,20 +3061,55 @@
           );
           racer.mesh.position.addInPlace(forward.scale(racer.speed * dt));
 
-          const t = path3D.getClosestPositionTo(racer.mesh.position);
-          const closest = path3D.getPointAt(t);
-          const tan = path3D.getTangentAt(t).normalize();
-          const binormal = path3D.getBinormalAt(t).normalize();
+          if (track.totalLaps > 1) {
+            if (racer.pathHint == null) racer.pathHint = track.startDist;
+            racer.distAlong = distanceAlongPathHinted(
+              path3D,
+              racer.mesh.position,
+              racer.pathHint,
+              35,
+              110
+            );
+            racer.pathHint = racer.distAlong;
+          } else {
+            racer.distAlong = distanceAlongPath(path3D, racer.mesh.position);
+          }
+
+          const sampleOnPath = samplePath(path3D, racer.distAlong);
+          const closest = sampleOnPath.position;
+          const tan = sampleOnPath.tangent;
+          const side = sampleOnPath.binormal;
           const lateral = BABYLON.Vector3.Dot(
             racer.mesh.position.subtract(closest),
-            binormal
+            side
           );
 
-          if (Math.abs(lateral) > PHYSICS.laneLimit) {
-            const excess = Math.abs(lateral) - PHYSICS.laneLimit;
+          const laneLimit = getActiveLaneLimit();
+          if (Math.abs(lateral) > laneLimit) {
+            const excess = Math.abs(lateral) - laneLimit;
             racer.mesh.position.addInPlace(
-              binormal.scale(-Math.sign(lateral) * excess)
+              side.scale(-Math.sign(lateral) * excess)
             );
+            const hitSpeed = Math.abs(racer.speed);
+            if (
+              racer.wallHitCooldown <= 0 &&
+              hitSpeed > 6 &&
+              excess > 0.02
+            ) {
+              const intensity = Math.min(1, hitSpeed / getRacerMaxSpeed(racer));
+              let playHit = racer.isPlayer;
+              if (!playHit) {
+                const distToPlayer = BABYLON.Vector3.Distance(
+                  player.mesh.position,
+                  racer.mesh.position
+                );
+                playHit = distToPlayer < 28;
+              }
+              if (playHit) {
+                GameAudio.playWallHit(intensity, racer.isPlayer);
+              }
+              racer.wallHitCooldown = racer.isPlayer ? 0.22 : 0.35;
+            }
             racer.speed *= 0.97;
           }
 
@@ -2696,25 +3117,58 @@
           racer.mesh.position.y = closest.y;
           racer.mesh.rotation.x = pitchFromTangent(tan);
 
-          racer.distAlong = distanceAlongPath(path3D, racer.mesh.position);
-          if (!racer.finished) {
-            racer.progress = raceProgressFromDistance(racer.distAlong, track);
-          } else {
-            racer.progress = 1;
-          }
-
-          // Chegada: cruza o plano OU já passou da distância da linha
+          // Chegada / voltas
           const toFinish = racer.mesh.position.subtract(finishSample.position);
           const finishSide = BABYLON.Vector3.Dot(toFinish, finishSample.tangent);
-          const nearFinish = racer.distAlong > track.finishDist - 35;
+          const nearFinish = racer.distAlong > track.finishDist - 40;
           const crossedPlane =
             nearFinish && racer.prevFinishSide < 0 && finishSide >= 0;
           const pastFinishDist = racer.distAlong >= track.finishDist;
 
-          if (!racer.finished && (crossedPlane || pastFinishDist)) {
+          if (track.totalLaps > 1) {
+            if (
+              !racer.lapArmed &&
+              racer.distAlong > track.startDist + track.lapLength * 0.4
+            ) {
+              racer.lapArmed = true;
+            }
+            if (
+              !racer.finished &&
+              racer.lapArmed &&
+              (crossedPlane || pastFinishDist)
+            ) {
+              racer.lapsCompleted += 1;
+              racer.lapArmed = false;
+              if (racer.lapsCompleted >= track.totalLaps) {
+                markRacerFinished(racer, raceTime);
+              } else {
+                let playCp = racer.isPlayer;
+                if (!playCp) {
+                  playCp =
+                    BABYLON.Vector3.Distance(
+                      player.mesh.position,
+                      racer.mesh.position
+                    ) < 35;
+                }
+                if (playCp) {
+                  GameAudio.playCheckpoint(racer.isPlayer);
+                }
+                wrapRacerToLapStart(racer);
+              }
+            }
+          } else if (!racer.finished && (crossedPlane || pastFinishDist)) {
             markRacerFinished(racer, raceTime);
           }
           racer.prevFinishSide = finishSide;
+
+          if (!racer.finished) {
+            racer.progress =
+              track.totalLaps > 1
+                ? raceProgressFromLaps(racer, track)
+                : raceProgressFromDistance(racer.distAlong, track);
+          } else {
+            racer.progress = 1;
+          }
         }
 
         function getPlayerPlace() {
@@ -2744,6 +3198,9 @@
 
         function updateRankingPanel() {
           rankingPanel.classList.add("show");
+          if (!raceOver && !allRacersFinished()) {
+            rankingPanel.classList.add("racing");
+          }
           rankingList.innerHTML = "";
 
           finishOrder.forEach(function (racer, index) {
@@ -2778,12 +3235,13 @@
 
           if (allRacersFinished() && !raceOver) {
             raceOver = true;
+            rankingPanel.classList.remove("racing");
             const finalPlace = getPlayerPlace();
             const didWin = registerWinIfFirst(finalPlace);
             const reward = rewardCoinsForPlace(finalPlace);
             progressLabel.textContent = "Progresso: 100%";
             placeLabel.textContent =
-              "Posição: " + placeText(finalPlace) + " / 3";
+              "Posição: " + placeText(finalPlace) + " / " + getFieldSize();
             let hint = "";
             if (didWin) {
               hint = "Vitória! ";
@@ -2828,10 +3286,11 @@
           setNodesEnabled(beachProps, true);
           if (finishGate) finishGate.setEnabled(true);
           player.mesh.setEnabled(true);
-          rivalA.mesh.setEnabled(false);
-          rivalB.mesh.setEnabled(false);
+          rivals.forEach(function (rival) {
+            rival.mesh.setEnabled(false);
+          });
           scene.fogMode = BABYLON.Scene.FOGMODE_EXP2;
-          scene.fogDensity = 0.012;
+          scene.fogDensity = 0.006;
         }
 
         function countActiveMeshes() {
@@ -2987,28 +3446,27 @@
             : keys;
 
           applyDrive(player, playerInput, dt);
-          applyDrive(rivalA, getAIInput(rivalA, dt), dt);
-          applyDrive(rivalB, getAIInput(rivalB, dt), dt);
+          getActiveRivals().forEach(function (rival) {
+            applyDrive(rival, getAIInput(rival, dt), dt);
+          });
           forceFinishStragglers();
 
-          // Motores dos 3 carros (rivais mais baixos quando longe)
           GameAudio.setEngineSpeed(
             "player",
             player.speed,
             getRacerMaxSpeed(player)
           );
-          GameAudio.setEngineSpeed(
-            "rivalA",
-            rivalA.speed,
-            getRacerMaxSpeed(rivalA),
-            BABYLON.Vector3.Distance(player.mesh.position, rivalA.mesh.position)
-          );
-          GameAudio.setEngineSpeed(
-            "rivalB",
-            rivalB.speed,
-            getRacerMaxSpeed(rivalB),
-            BABYLON.Vector3.Distance(player.mesh.position, rivalB.mesh.position)
-          );
+          getActiveRivals().forEach(function (rival) {
+            GameAudio.setEngineSpeed(
+              rival.id,
+              rival.speed,
+              getRacerMaxSpeed(rival),
+              BABYLON.Vector3.Distance(
+                player.mesh.position,
+                rival.mesh.position
+              )
+            );
+          });
 
           // Câmera desacelera e assenta na chegada (sem salto brusco)
           if (player.finished) {
@@ -3016,14 +3474,30 @@
           }
 
           const place = getPlayerPlace();
-          placeLabel.textContent = "Posição: " + placeText(place) + " / 3";
+          placeLabel.textContent =
+            "Posição: " + placeText(place) + " / " + getFieldSize();
           speedLabel.textContent =
             "Velocidade: " + Math.round(Math.abs(player.speed));
 
           if (!player.finished) {
             const progress = Math.floor(player.progress * 100);
-            progressLabel.textContent =
-              "Progresso: " + Math.max(0, Math.min(99, progress)) + "%";
+            if (track.totalLaps > 1) {
+              const lapShow = Math.min(
+                track.totalLaps,
+                player.lapsCompleted + 1
+              );
+              progressLabel.textContent =
+                "Volta " +
+                lapShow +
+                "/" +
+                track.totalLaps +
+                " · " +
+                Math.max(0, Math.min(99, progress)) +
+                "%";
+            } else {
+              progressLabel.textContent =
+                "Progresso: " + Math.max(0, Math.min(99, progress)) + "%";
+            }
           } else if (!raceOver) {
             progressLabel.textContent =
               "Chegou! Aguardando os outros...";
@@ -3045,8 +3519,10 @@
           trackLength = track.trackLength;
           applyTrackTheme(track.data);
           buildTrackWorld();
+          syncActiveRacers();
           placeGrid();
           enterMenuCamera();
+          placeLabel.textContent = "Posição: 1º / " + getFieldSize();
           return true;
         };
 
