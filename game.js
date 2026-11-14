@@ -39,6 +39,10 @@ const hud = document.getElementById("hud");
 const rankingPanel = document.getElementById("rankingPanel");
 const rankingList = document.getElementById("rankingList");
 const rankingHint = document.getElementById("rankingHint");
+const postRaceControls = document.getElementById("postRaceControls");
+const spectatorLabel = document.getElementById("spectatorLabel");
+const btnFinishRace = document.getElementById("btnFinishRace");
+const rankingEstimateNote = document.getElementById("rankingEstimateNote");
 const countdownOverlay = document.getElementById("countdownOverlay");
 const countdownNumber = document.getElementById("countdownNumber");
 const moneyLabel = document.getElementById("moneyLabel");
@@ -1838,6 +1842,7 @@ const createScene = function () {
       flashMats: null,
       finished: false,
       finishTime: null,
+      finishTimeEstimated: false,
       prevFinishSide: -1,
       preferredLane: aiStyle ? aiStyle.preferredLane : 0,
       lookAhead: aiStyle ? aiStyle.lookAhead : 0,
@@ -2611,13 +2616,14 @@ const createScene = function () {
   // Âncora fixa: a FollowCamera desacelera até ela (parada suave)
   const cameraAnchor = new BABYLON.TransformNode("cameraAnchor", scene);
   let finishCameraLocked = false;
+  let spectatorTarget = null;
 
-  function lockCameraAtFinish() {
+  function lockCameraAtFinish(racer = player) {
     if (finishCameraLocked) return;
     finishCameraLocked = true;
     // Fixa onde o carro estava ao cruzar — a câmera ainda "chega" com suavidade
-    cameraAnchor.position.copyFrom(player.mesh.position);
-    cameraAnchor.rotation.y = player.mesh.rotation.y;
+    cameraAnchor.position.copyFrom(racer.mesh.position);
+    cameraAnchor.rotation.y = racer.mesh.rotation.y;
     camera.lockedTarget = cameraAnchor;
     camera.cameraAcceleration = 0.025;
     camera.maxCameraSpeed = 6;
@@ -2699,6 +2705,82 @@ const createScene = function () {
   let countdownStep = 0; // 0=3, 1=2, 2=1
   let goDisplayTimer = 0;
   const countdownLabels = ["3", "2", "1"];
+  const POST_RACE_WAIT_SECONDS = 5;
+
+  function resetPostRaceView() {
+    spectatorTarget = null;
+    postRaceControls.hidden = true;
+    spectatorLabel.textContent = "";
+    rankingEstimateNote.hidden = true;
+    rankingPanel.classList.remove("spectating");
+  }
+
+  function canConcludeRace() {
+    return (
+      !inMenu &&
+      !botBench.active &&
+      !raceOver &&
+      player.finished &&
+      raceTime - player.finishTime >= POST_RACE_WAIT_SECONDS
+    );
+  }
+
+  function getPendingBots() {
+    return racers
+      .filter(function (racer) {
+        return !racer.isPlayer && !racer.finished;
+      })
+      .sort(function (a, b) {
+        // O progresso total inclui as voltas já completadas no oval.
+        return b.progress - a.progress;
+      });
+  }
+
+  function updatePostRaceView() {
+    if (!player.finished || botBench.active) return;
+    if (raceOver) {
+      lockCameraAtFinish(spectatorTarget || player);
+      spectatorTarget = null;
+      return;
+    }
+    if (!canConcludeRace()) {
+      lockCameraAtFinish();
+      return;
+    }
+    if (!spectatorTarget || spectatorTarget.finished) {
+      spectatorTarget = getPendingBots()[0] || null;
+      if (!spectatorTarget) return;
+      unlockCameraFollow();
+      camera.lockedTarget = spectatorTarget.mesh;
+      spectatorLabel.textContent = "Assistindo: " + spectatorTarget.name;
+    }
+    postRaceControls.hidden = false;
+    rankingPanel.classList.add("spectating");
+  }
+
+  function estimateFinishTime(racer) {
+    const progress = Math.max(0, Math.min(1, racer.progress || 0));
+    // Mantém o ritmo médio observado: tempo total = tempo decorrido / progresso.
+    // Sem progresso, usa o tempo do jogador como referência para o trecho restante.
+    const estimate = progress > 0
+      ? raceTime / progress
+      : raceTime + player.finishTime;
+    return Math.max(raceTime + 0.1, estimate);
+  }
+
+  function concludeRaceWithEstimates() {
+    if (!canConcludeRace()) return;
+    let previousTime = raceTime;
+    const estimates = getPendingBots().map(function (racer) {
+      // Preserva a ordem por progresso, inclusive para bots ainda sem avanço.
+      const time = Math.max(previousTime + 0.1, estimateFinishTime(racer));
+      previousTime = time;
+      return { racer: racer, time: time };
+    });
+    estimates.forEach(function (entry) {
+      markRacerFinished(entry.racer, entry.time, true);
+    });
+  }
 
   function placeRacer(racer, distance, lateral) {
     const sample = samplePath(path3D, Math.max(0, distance));
@@ -2718,6 +2800,7 @@ const createScene = function () {
         : raceProgressFromDistance(racer.distAlong, track);
     racer.finished = false;
     racer.finishTime = null;
+    racer.finishTimeEstimated = false;
     racer.againstWall = false;
     racer.wallHitCooldown = 0;
     racer.collisionBlinkT = 0;
@@ -2798,6 +2881,10 @@ const createScene = function () {
       showMainMenu();
       return;
     }
+    if (canConcludeRace() && consumeVirtualConfirm()) {
+      concludeRaceWithEstimates();
+      return;
+    }
     if (!inMenu) {
       consumeVirtualConfirm();
       consumeVirtualBack();
@@ -2822,6 +2909,7 @@ const createScene = function () {
   }
 
   function showMainMenu() {
+    resetPostRaceView();
     inMenu = true;
     raceOver = false;
     countdownActive = false;
@@ -2856,6 +2944,7 @@ const createScene = function () {
   }
 
   function startRaceFromMenu() {
+    resetPostRaceView();
     closeGarage();
     closeShop();
     // Garante que a corrida usa o carro equipado (não o preview bloqueado)
@@ -2899,6 +2988,8 @@ const createScene = function () {
   btnStartRace.addEventListener("click", function () {
     startRaceFromMenu();
   });
+
+  btnFinishRace.addEventListener("click", concludeRaceWithEstimates);
 
   document
     .getElementById("btnGarage")
@@ -2962,13 +3053,16 @@ const createScene = function () {
 
   window.addEventListener("keydown", (e) => {
     if (
-      raceOver &&
       !botBench.active &&
       (e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space")
     ) {
-      e.preventDefault();
-      showMainMenu();
-      return;
+      if (raceOver || canConcludeRace()) {
+        e.preventDefault();
+        if (e.repeat) return;
+        if (raceOver) showMainMenu();
+        else concludeRaceWithEstimates();
+        return;
+      }
     }
     if (!inMenu) return;
     if (shopOpen) {
@@ -3068,26 +3162,27 @@ const createScene = function () {
     return { up, down, left, right };
   }
 
-  function markRacerFinished(racer, finishTime) {
+  function markRacerFinished(racer, finishTime, estimated = false) {
     if (racer.finished) return;
     racer.finished = true;
     racer.finishTime = finishTime;
+    racer.finishTimeEstimated = estimated;
     racer.progress = 1;
     finishOrder.push(racer);
-    if (!botBench.active) {
+    if (!botBench.active && !estimated) {
       GameAudio.playFinish(racer.isPlayer);
     }
     updateRankingPanel();
   }
 
   function forceFinishStragglers() {
-    if (raceOver || finishOrder.length === 0) return;
+    if (!botBench.active || raceOver || finishOrder.length === 0) return;
     const firstFinish = finishOrder[0].finishTime;
-    // Se alguém já chegou há tempo e ainda falta gente, encerra os atrasados
+    // Só o diagnóstico de bots encerra atrasados automaticamente após 14s.
     if (raceTime < firstFinish + 14) return;
     const pending = racers
       .filter(function (racer) {
-        return !racer.finished;
+        return !racer.isPlayer && !racer.finished;
       })
       .sort(function (a, b) {
         return b.distAlong - a.distAlong;
@@ -3388,7 +3483,8 @@ const createScene = function () {
         "<span>" +
         racer.name +
         "</span>" +
-        '<span class="time">' +
+        '<span class="time"' +
+        (racer.finishTimeEstimated ? ' title="Tempo estimado">≈' : '>') +
         racer.finishTime.toFixed(1) +
         "s</span>";
       rankingList.appendChild(row);
@@ -3408,9 +3504,14 @@ const createScene = function () {
       rankingList.appendChild(row);
     });
 
+    rankingEstimateNote.hidden = !finishOrder.some(function (racer) {
+      return racer.finishTimeEstimated;
+    });
+
     if (allRacersFinished() && !raceOver) {
       raceOver = true;
-      rankingPanel.classList.remove("racing");
+      postRaceControls.hidden = true;
+      rankingPanel.classList.remove("racing", "spectating");
 
       if (botBench.active && botBench.resolveRace) {
         const rows = finishOrder.map(function (racer, index) {
@@ -3697,7 +3798,7 @@ const createScene = function () {
     getActiveRivals().forEach(function (rival) {
       applyDrive(rival, getAIInput(rival, dt), dt);
     });
-    forceFinishStragglers();
+    updatePostRaceView();
 
     GameAudio.setEngineSpeed(
       "player",
@@ -3710,30 +3811,28 @@ const createScene = function () {
         rival.speed,
         getRacerMaxSpeed(rival),
         BABYLON.Vector3.Distance(
-          player.mesh.position,
+          (spectatorTarget || player).mesh.position,
           rival.mesh.position
         )
       );
     });
 
-    // Câmera desacelera e assenta na chegada (sem salto brusco)
-    if (player.finished) {
-      lockCameraAtFinish();
-    }
-
     const place = getPlayerPlace();
     placeLabel.textContent =
-      "Posição: " + placeText(place) + " / " + getFieldSize();
-    setSpeedHud(player.speed, getRacerMaxSpeed(player));
+      spectatorTarget
+        ? "Assistindo: " + spectatorTarget.name
+        : "Posição: " + placeText(place) + " / " + getFieldSize();
+    const hudRacer = spectatorTarget || player;
+    setSpeedHud(hudRacer.speed, getRacerMaxSpeed(hudRacer));
 
-    if (!player.finished) {
-      const progressRatio = Math.max(0, Math.min(1, player.progress || 0));
+    if (!hudRacer.finished) {
+      const progressRatio = Math.max(0, Math.min(1, hudRacer.progress || 0));
       const stepped = snapProgressRatio(progressRatio);
       const shown = Math.min(90, Math.round(stepped * 100));
       if (track.totalLaps > 1) {
         const lapShow = Math.min(
           track.totalLaps,
-          player.lapsCompleted + 1
+          hudRacer.lapsCompleted + 1
         );
         setProgressHud(
           stepped,
@@ -3782,6 +3881,7 @@ const createScene = function () {
   };
 
   function beginBotBenchRace() {
+    resetPostRaceView();
     closeGarage({ restoreCar: false });
     closeShop({ restoreCar: false });
     GameAudio.stopEngines();

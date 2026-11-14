@@ -135,7 +135,13 @@
     </div>
     <div id="rankingPanel">
       <h2>RANKING</h2>
+      <div id="postRaceControls" hidden>
+        <p id="spectatorLabel" aria-live="polite"></p>
+        <button type="button" id="btnFinishRace">Concluir corrida</button>
+        <p class="post-race-help">Estimar os tempos dos bots restantes.</p>
+      </div>
       <div id="rankingList"></div>
+      <p id="rankingEstimateNote" hidden>≈ Tempo de chegada estimado.</p>
       <p id="rankingHint">Pressione Enter ou Espaço para voltar ao menu</p>
     </div>
     <div id="debugFps">-- FPS</div>
