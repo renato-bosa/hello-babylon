@@ -1996,6 +1996,9 @@
             pathHint: 0,
             wallHitCooldown: 0,
             againstWall: false,
+            collisionBlinkT: 0,
+            collisionFlashOn: false,
+            flashMats: null,
             finished: false,
             finishTime: null,
             prevFinishSide: -1,
@@ -2250,6 +2253,9 @@
           player.mesh.position.copyFrom(pos);
           player.mesh.rotation.y = rotY;
           player.mesh.setEnabled(wasEnabled);
+          player.flashMats = null;
+          player.collisionFlashOn = false;
+          player.collisionBlinkT = 0;
           camera.lockedTarget = player.mesh;
           if (saveEquip) {
             equippedCarId = carId;
@@ -2877,6 +2883,9 @@
           racer.finishTime = null;
           racer.againstWall = false;
           racer.wallHitCooldown = 0;
+          racer.collisionBlinkT = 0;
+          setRacerCollisionFlash(racer, false);
+          if (racer.mesh) racer.mesh.setEnabled(true);
           racer.bench = {
             wallHits: 0,
             scrapeTime: 0,
@@ -3251,6 +3260,59 @@
           });
         }
 
+        function cacheRacerFlashMats(racer) {
+          if (racer.flashMats || !racer.mesh) return;
+          const entries = [];
+          const meshes = racer.mesh.getChildMeshes
+            ? racer.mesh.getChildMeshes(false)
+            : [];
+          for (let i = 0; i < meshes.length; i++) {
+            const mat = meshes[i].material;
+            if (!mat) continue;
+            const mats = mat.subMaterials || [mat];
+            for (let j = 0; j < mats.length; j++) {
+              const m = mats[j];
+              if (!m || !m.emissiveColor) continue;
+              entries.push({
+                mat: m,
+                emissive: m.emissiveColor.clone(),
+                diffuse: m.diffuseColor ? m.diffuseColor.clone() : null,
+              });
+            }
+          }
+          racer.flashMats = entries;
+        }
+
+        function setRacerCollisionFlash(racer, on) {
+          if (!!racer.collisionFlashOn === !!on) return;
+          cacheRacerFlashMats(racer);
+          const entries = racer.flashMats || [];
+          const flashAmount = 0.25; // 25% branco / 75% cor original
+          for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            if (on) {
+              entry.mat.emissiveColor.set(
+                entry.emissive.r + (1 - entry.emissive.r) * flashAmount,
+                entry.emissive.g + (1 - entry.emissive.g) * flashAmount,
+                entry.emissive.b + (1 - entry.emissive.b) * flashAmount
+              );
+              if (entry.diffuse && entry.mat.diffuseColor) {
+                entry.mat.diffuseColor.set(
+                  entry.diffuse.r + (1 - entry.diffuse.r) * flashAmount,
+                  entry.diffuse.g + (1 - entry.diffuse.g) * flashAmount,
+                  entry.diffuse.b + (1 - entry.diffuse.b) * flashAmount
+                );
+              }
+            } else {
+              entry.mat.emissiveColor.copyFrom(entry.emissive);
+              if (entry.diffuse && entry.mat.diffuseColor) {
+                entry.mat.diffuseColor.copyFrom(entry.diffuse);
+              }
+            }
+          }
+          racer.collisionFlashOn = !!on;
+        }
+
         function applyDrive(racer, input, dt) {
           if (racer.wallHitCooldown > 0) {
             racer.wallHitCooldown -= dt;
@@ -3360,8 +3422,15 @@
             }
             racer.againstWall = true;
             racer.speed *= 0.97;
+            racer.collisionBlinkT += dt;
+            // Pisca branco ~8×/s enquanto colide
+            const blinkOn =
+              Math.sin(racer.collisionBlinkT * Math.PI * 16) > 0;
+            setRacerCollisionFlash(racer, blinkOn);
           } else {
+            setRacerCollisionFlash(racer, false);
             racer.againstWall = false;
+            racer.collisionBlinkT = 0;
           }
 
           // Arraste: contínuo enquanto raspa a lateral (só jogador)
