@@ -2,6 +2,10 @@
 <html lang="pt-BR">
   <head>
     <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
     <title>Neon Rush — Luigi</title>
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
@@ -99,7 +103,7 @@
     <div id="debugPerfReport"></div>
     <div id="hud">
       <h1>NEON RUSH</h1>
-      <p>↑ acelerar · ↓ frear · ← → virar</p>
+      <p id="hudControlsHint">↑ acelerar · ↓ frear · ← → virar</p>
       <p id="speedLabel">Velocidade: 0</p>
       <p id="progressLabel">Progresso: 0%</p>
       <p id="placeLabel">Posição: 1º / 3</p>
@@ -114,6 +118,30 @@
     </div>
     <div id="debugFps">-- FPS</div>
     <canvas id="renderCanvas"></canvas>
+
+    <!-- Controles mobile (padrão Rock Hero, adaptado à corrida) -->
+    <div id="mobile-controls" aria-hidden="true">
+      <div id="dpad-container">
+        <div id="btn-left" class="mobile-btn" data-control="left">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z" />
+          </svg>
+        </div>
+        <div id="dpad-deadzone"></div>
+        <div id="btn-right" class="mobile-btn" data-control="right">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z" />
+          </svg>
+        </div>
+      </div>
+      <div id="btn-accel" class="mobile-btn" data-control="accel" title="Acelerar">
+        ▲
+      </div>
+      <div id="btn-brake" class="mobile-btn" data-control="brake" title="Frear / Voltar">
+        ▼
+      </div>
+    </div>
+    <script src="mobile-controls.js"></script>
     <script>
       const canvas = document.getElementById("renderCanvas");
       const speedLabel = document.getElementById("speedLabel");
@@ -371,6 +399,43 @@
         left: false,
         right: false,
       };
+
+      function getVirtualControls() {
+        return (
+          window.virtualControls || {
+            left: false,
+            right: false,
+            up: false,
+            down: false,
+            confirmJustPressed: false,
+            backJustPressed: false,
+          }
+        );
+      }
+
+      function mergeDriveInput(base) {
+        const vc = getVirtualControls();
+        return {
+          up: !!(base.up || vc.up),
+          down: !!(base.down || vc.down),
+          left: !!(base.left || vc.left),
+          right: !!(base.right || vc.right),
+        };
+      }
+
+      function consumeVirtualConfirm() {
+        const vc = getVirtualControls();
+        if (!vc.confirmJustPressed) return false;
+        vc.confirmJustPressed = false;
+        return true;
+      }
+
+      function consumeVirtualBack() {
+        const vc = getVirtualControls();
+        if (!vc.backJustPressed) return false;
+        vc.backJustPressed = false;
+        return true;
+      }
 
       window.addEventListener("keydown", (e) => {
         if (e.code === "ArrowUp" || e.code === "KeyW") keys.up = true;
@@ -2232,6 +2297,7 @@
           panel.classList.add("show");
           panel.setAttribute("aria-hidden", "false");
           showGarageCarAt(garageIndex, { resetView: false });
+          syncMobileControlsVisibility();
         }
 
         function closeGarage(options) {
@@ -2249,6 +2315,7 @@
           panel.setAttribute("aria-hidden", "true");
           document.getElementById("mainMenu").classList.remove("garage-open");
           if (restoreCar) refreshEquippedCarLabel();
+          syncMobileControlsVisibility();
         }
 
         // —— Loja: 5 ofertas; itens preenchem quando faltam carros ——
@@ -2578,6 +2645,7 @@
           panel.classList.add("show");
           panel.setAttribute("aria-hidden", "false");
           showShopOfferAt(0, { resetView: false });
+          syncMobileControlsVisibility();
         }
 
         function closeShop(options) {
@@ -2598,6 +2666,7 @@
           panel.setAttribute("aria-hidden", "true");
           document.getElementById("mainMenu").classList.remove("shop-open");
           if (restoreCar) refreshEquippedCarLabel();
+          syncMobileControlsVisibility();
         }
 
         const camera = new BABYLON.FollowCamera(
@@ -2778,6 +2847,66 @@
           });
         }
 
+        function syncMobileControlsVisibility() {
+          const touch =
+            typeof window.isNeonRushTouchDevice === "function" &&
+            window.isNeonRushTouchDevice();
+          const hint = document.getElementById("hudControlsHint");
+          if (hint) {
+            hint.textContent = touch
+              ? "▲ acelerar · ▼ frear · ← → virar"
+              : "↑ acelerar · ↓ frear · ← → virar";
+          }
+          const show =
+            touch &&
+            !botBench.active &&
+            !perfTestRunning &&
+            (!inMenu || garageOpen || shopOpen || raceOver);
+          if (typeof window.setMobileControlsVisible === "function") {
+            window.setMobileControlsVisible(show);
+          }
+        }
+
+        const virtualEdgePrev = { left: false, right: false };
+        function pollVirtualEdge(side) {
+          const vc = getVirtualControls();
+          const now = !!vc[side];
+          const pressed = now && !virtualEdgePrev[side];
+          virtualEdgePrev[side] = now;
+          return pressed;
+        }
+
+        function handleVirtualMenuActions() {
+          const leftPressed = pollVirtualEdge("left");
+          const rightPressed = pollVirtualEdge("right");
+
+          if (raceOver && !botBench.active && consumeVirtualConfirm()) {
+            showMainMenu();
+            return;
+          }
+          if (!inMenu) {
+            consumeVirtualConfirm();
+            consumeVirtualBack();
+            return;
+          }
+          if (shopOpen) {
+            if (leftPressed) stepShop(-1);
+            if (rightPressed) stepShop(1);
+            if (consumeVirtualConfirm()) buyShopOffer();
+            if (consumeVirtualBack()) closeShop();
+            return;
+          }
+          if (garageOpen) {
+            if (leftPressed) stepGarage(-1);
+            if (rightPressed) stepGarage(1);
+            if (consumeVirtualConfirm()) equipGarageCar();
+            if (consumeVirtualBack()) closeGarage();
+            return;
+          }
+          consumeVirtualConfirm();
+          consumeVirtualBack();
+        }
+
         function showMainMenu() {
           inMenu = true;
           raceOver = false;
@@ -2798,6 +2927,7 @@
           speedLabel.textContent = "Velocidade: 0";
           refreshAccountStats();
           enterMenuCamera();
+          syncMobileControlsVisibility();
         }
 
         function startCountdown() {
@@ -2849,6 +2979,7 @@
           placeLabel.textContent = "Posição: 1º / " + getFieldSize();
           speedLabel.textContent = "Velocidade: 0";
           startCountdown();
+          syncMobileControlsVisibility();
         }
 
         btnStartRace.addEventListener("click", function () {
@@ -3363,14 +3494,18 @@
             } else if (!didWin) {
               hint = "Sem moedas desta vez. ";
             }
-            rankingHint.innerHTML =
-              hint.trim() +
-              "<br>Pressione Enter ou Espaço para voltar ao menu";
+            const touchHint =
+              typeof window.isNeonRushTouchDevice === "function" &&
+              window.isNeonRushTouchDevice()
+                ? "Toque em ▲ para voltar ao menu"
+                : "Pressione Enter ou Espaço para voltar ao menu";
+            rankingHint.innerHTML = hint.trim() + "<br>" + touchHint;
             rankingHint.classList.add("show");
             // Desliza o quadro do canto para o centro
             requestAnimationFrame(function () {
               rankingPanel.classList.add("centered");
             });
+            syncMobileControlsVisibility();
           }
         }
 
@@ -3505,6 +3640,7 @@
 
         scene.onBeforeRenderObservable.add(() => {
           const dt = engine.getDeltaTime() / 1000;
+          handleVirtualMenuActions();
 
           // Hub: carro/item no centro girando + câmera orbitando
           if (inMenu) {
@@ -3577,9 +3713,11 @@
           }
 
           // Depois da chegada o jogador só desacelera (ainda pode virar)
-          const playerInput = player.finished
-            ? { up: false, down: false, left: keys.left, right: keys.right }
-            : keys;
+          const playerInput = mergeDriveInput(
+            player.finished
+              ? { up: false, down: false, left: keys.left, right: keys.right }
+              : keys
+          );
 
           applyDrive(player, playerInput, dt);
           getActiveRivals().forEach(function (rival) {

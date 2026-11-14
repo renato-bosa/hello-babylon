@@ -7,6 +7,9 @@ body {
   padding: 0;
   background: #05010f;
   font-family: "Segoe UI", Tahoma, sans-serif;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 #renderCanvas {
@@ -779,4 +782,135 @@ body {
 
 #debugPerfReport.show {
   display: block;
+}
+
+/* === Controles mobile (padrão Rock Hero) === */
+#mobile-controls {
+  display: none;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 12;
+}
+
+#mobile-controls.show {
+  display: block;
+}
+
+.mobile-btn {
+  position: absolute;
+  pointer-events: auto;
+  border-radius: 50%;
+  background: rgba(0, 229, 255, 0.12);
+  border: 3px solid rgba(0, 229, 255, 0.35);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.1s, transform 0.1s, box-shadow 0.1s;
+  color: rgba(184, 243, 255, 0.85);
+  font-weight: 700;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  box-shadow: 0 0 14px rgba(0, 229, 255, 0.15);
+}
+
+.mobile-btn:active,
+.mobile-btn.active {
+  background: rgba(255, 79, 216, 0.28);
+  border-color: rgba(255, 79, 216, 0.55);
+  transform: scale(0.95);
+  box-shadow: 0 0 18px rgba(255, 79, 216, 0.35);
+}
+
+.mobile-btn svg {
+  width: 50%;
+  height: 50%;
+  fill: rgba(184, 243, 255, 0.8);
+}
+
+#dpad-container {
+  position: absolute;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  left: calc(16px + env(safe-area-inset-left, 0px));
+  display: flex;
+  height: 80px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 3px solid rgba(0, 229, 255, 0.35);
+  background: rgba(5, 1, 20, 0.35);
+}
+
+#btn-left,
+#btn-right {
+  position: relative;
+  width: 67.5px;
+  height: 100%;
+  border-radius: 0;
+  border: none;
+  background: rgba(0, 229, 255, 0.12);
+  box-shadow: none;
+}
+
+#dpad-deadzone {
+  width: 15px;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+}
+
+#btn-left.active,
+#btn-right.active {
+  background: rgba(255, 79, 216, 0.28);
+  transform: none;
+}
+
+#btn-accel {
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  right: calc(16px + env(safe-area-inset-right, 0px));
+  width: 90px;
+  height: 90px;
+  font-size: 28px;
+}
+
+#btn-brake {
+  bottom: calc(130px + env(safe-area-inset-bottom, 0px));
+  right: calc(26px + env(safe-area-inset-right, 0px));
+  width: 60px;
+  height: 60px;
+  font-size: 22px;
+  color: rgba(255, 140, 160, 0.85);
+  border-color: rgba(255, 100, 130, 0.4);
+  background: rgba(255, 80, 120, 0.12);
+}
+
+@media (max-width: 480px) {
+  #dpad-container {
+    height: 60px;
+    border-radius: 14px;
+  }
+
+  #btn-left,
+  #btn-right {
+    width: 52px;
+  }
+
+  #dpad-deadzone {
+    width: 12px;
+  }
+
+  #btn-accel {
+    width: 70px;
+    height: 70px;
+    font-size: 22px;
+  }
+
+  #btn-brake {
+    bottom: calc(108px + env(safe-area-inset-bottom, 0px));
+    right: calc(22px + env(safe-area-inset-right, 0px));
+    width: 45px;
+    height: 45px;
+    font-size: 16px;
+  }
 }
