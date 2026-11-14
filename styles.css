@@ -104,90 +104,149 @@ body {
   text-shadow: none;
 }
 
-/* Ghost cyan — offset esquerda */
+/* Ghosts só nos picos — ciclo longo: burst A (esq/dir) depois burst B invertido */
 .logo-glitch::before {
   color: #00e5ff;
-  opacity: 0.35;
-  transform: translate(-3px, 1px);
+  opacity: 0;
+  transform: translate(0, 0);
   z-index: -1;
-  animation: logo-glitch-cyan 2.8s steps(2, end) infinite;
+  animation: logo-glitch-cyan 5.6s steps(2, end) infinite;
 }
 
-/* Ghost magenta — offset direita */
 .logo-glitch::after {
   color: #ff4fd8;
-  opacity: 0.28;
-  transform: translate(3px, -1px);
+  opacity: 0;
+  transform: translate(0, 0);
   z-index: -2;
-  animation: logo-glitch-magenta 2.8s steps(2, end) infinite;
+  animation: logo-glitch-magenta 5.6s steps(2, end) infinite;
   animation-delay: 0.12s;
 }
 
 @keyframes logo-glitch-cyan {
   0%,
-  86%,
+  43%,
+  50%,
+  93%,
   100% {
-    opacity: 0.28;
-    transform: translate(-2px, 1px);
+    opacity: 0;
+    transform: translate(0, 0);
     clip-path: inset(0 0 0 0);
   }
-  87% {
+
+  /* Burst A — inicia para a esquerda */
+  43.5% {
     opacity: 0.55;
     transform: translate(-6px, 2px);
     clip-path: inset(12% 0 55% 0);
   }
-  89% {
-    opacity: 0.2;
+  44.5% {
+    opacity: 0.25;
     transform: translate(4px, -2px);
     clip-path: inset(40% 0 20% 0);
   }
-  91% {
+  45.5% {
     opacity: 0.45;
     transform: translate(-5px, 0);
     clip-path: inset(0 0 0 0);
   }
-  93%,
-  95% {
-    opacity: 0.15;
-    transform: translate(0, 0);
-  }
-  94% {
+  46.5% {
     opacity: 0.6;
     transform: translate(-7px, 1px);
+  }
+  47%,
+  48% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+
+  /* Burst B — direções invertidas (inicia para a direita) */
+  93.5% {
+    opacity: 0.55;
+    transform: translate(6px, 2px);
+    clip-path: inset(12% 0 55% 0);
+  }
+  94.5% {
+    opacity: 0.25;
+    transform: translate(-4px, -2px);
+    clip-path: inset(40% 0 20% 0);
+  }
+  95.5% {
+    opacity: 0.45;
+    transform: translate(5px, 0);
+    clip-path: inset(0 0 0 0);
+  }
+  96.5% {
+    opacity: 0.6;
+    transform: translate(7px, 1px);
+  }
+  97%,
+  98% {
+    opacity: 0;
+    transform: translate(0, 0);
   }
 }
 
 @keyframes logo-glitch-magenta {
   0%,
-  86%,
+  43%,
+  50%,
+  93%,
   100% {
-    opacity: 0.22;
-    transform: translate(2px, -1px);
+    opacity: 0;
+    transform: translate(0, 0);
     clip-path: inset(0 0 0 0);
   }
-  88% {
+
+  /* Burst A — inicia para a direita */
+  44% {
     opacity: 0.5;
     transform: translate(6px, -2px);
     clip-path: inset(50% 0 10% 0);
   }
-  90% {
-    opacity: 0.18;
+  45% {
+    opacity: 0.22;
     transform: translate(-3px, 2px);
     clip-path: inset(8% 0 48% 0);
   }
-  92% {
+  46% {
     opacity: 0.4;
     transform: translate(5px, 0);
     clip-path: inset(0 0 0 0);
   }
-  94%,
-  96% {
-    opacity: 0.12;
-    transform: translate(0, 0);
-  }
-  95% {
+  47% {
     opacity: 0.55;
     transform: translate(7px, -1px);
+  }
+  47.5%,
+  48.5% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+
+  /* Burst B — invertido (inicia para a esquerda) */
+  94% {
+    opacity: 0.5;
+    transform: translate(-6px, -2px);
+    clip-path: inset(50% 0 10% 0);
+  }
+  95% {
+    opacity: 0.22;
+    transform: translate(3px, 2px);
+    clip-path: inset(8% 0 48% 0);
+  }
+  96% {
+    opacity: 0.4;
+    transform: translate(-5px, 0);
+    clip-path: inset(0 0 0 0);
+  }
+  97% {
+    opacity: 0.55;
+    transform: translate(-7px, -1px);
+  }
+  97.5%,
+  98.5% {
+    opacity: 0;
+    transform: translate(0, 0);
   }
 }
 
@@ -195,15 +254,7 @@ body {
   .logo-glitch::before,
   .logo-glitch::after {
     animation: none;
-    opacity: 0.22;
-  }
-
-  .logo-glitch::before {
-    transform: translate(-2px, 0);
-  }
-
-  .logo-glitch::after {
-    transform: translate(2px, 0);
+    opacity: 0;
   }
 }
 
@@ -720,14 +771,6 @@ body {
   letter-spacing: 2px;
   color: #ff4fd8;
   text-shadow: 0 0 10px #ff4fd8;
-}
-
-#hud .logo-glitch::before {
-  transform: translate(-2px, 1px);
-}
-
-#hud .logo-glitch::after {
-  transform: translate(2px, -1px);
 }
 
 #hud p {
