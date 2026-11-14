@@ -784,6 +784,64 @@ body {
   display: block;
 }
 
+/* Botão de tela cheia (padrão Rock Hero) */
+#fullscreen-toggle {
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top));
+  right: max(12px, env(safe-area-inset-right));
+  z-index: 15;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  color: #b8f3ff;
+  background: rgba(10, 4, 30, 0.72);
+  border: 1px solid rgba(0, 229, 255, 0.4);
+  border-radius: 10px;
+  opacity: 0.85;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 0.15s, background 0.15s, box-shadow 0.15s;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.15);
+}
+
+#fullscreen-toggle[hidden] {
+  display: none;
+}
+
+#fullscreen-toggle:hover,
+#fullscreen-toggle:focus-visible {
+  opacity: 1;
+  background: rgba(10, 4, 30, 0.92);
+  box-shadow: 0 0 16px rgba(255, 79, 216, 0.35);
+}
+
+#fullscreen-toggle:focus-visible {
+  outline: 2px solid #ff4fd8;
+  outline-offset: 2px;
+}
+
+#fullscreen-toggle svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+#fullscreen-toggle .icon-exit,
+#fullscreen-toggle[aria-pressed="true"] .icon-enter {
+  display: none;
+}
+
+#fullscreen-toggle[aria-pressed="true"] .icon-exit {
+  display: block;
+}
+
 /* === Controles mobile (padrão Rock Hero) === */
 #mobile-controls {
   display: none;

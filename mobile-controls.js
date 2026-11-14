@@ -220,9 +220,72 @@
     el.setAttribute("aria-hidden", visible ? "false" : "true");
   };
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", initMobileControls);
-  } else {
+  function initFullscreenToggle() {
+    const button = document.getElementById("fullscreen-toggle");
+    if (!button) return;
+
+    const fullscreenRoot = document.documentElement;
+    if (
+      !fullscreenRoot.requestFullscreen ||
+      !document.exitFullscreen ||
+      document.fullscreenEnabled === false
+    ) {
+      button.hidden = true;
+      return;
+    }
+
+    async function toggleFullscreen() {
+      try {
+        if (document.fullscreenElement) {
+          await document.exitFullscreen();
+        } else {
+          await fullscreenRoot.requestFullscreen();
+        }
+      } catch (error) {
+        console.warn("Não foi possível alterar o modo de tela cheia:", error);
+      }
+    }
+
+    function syncFullscreenState() {
+      const active = Boolean(document.fullscreenElement);
+      button.setAttribute("aria-pressed", String(active));
+      button.setAttribute(
+        "aria-label",
+        active ? "Sair da tela cheia" : "Entrar em tela cheia"
+      );
+      button.title = active ? "Sair da tela cheia (F)" : "Tela cheia (F)";
+      window.dispatchEvent(new Event("resize"));
+    }
+
+    button.addEventListener("click", toggleFullscreen);
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+
+    document.addEventListener("keydown", function (event) {
+      if (
+        event.code !== "KeyF" ||
+        event.repeat ||
+        event.altKey ||
+        event.ctrlKey ||
+        event.metaKey ||
+        (event.target &&
+          event.target.closest &&
+          event.target.closest("input, textarea, select, [contenteditable]"))
+      ) {
+        return;
+      }
+      event.preventDefault();
+      toggleFullscreen();
+    });
+  }
+
+  function bootOverlayControls() {
     initMobileControls();
+    initFullscreenToggle();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootOverlayControls);
+  } else {
+    bootOverlayControls();
   }
 })();
