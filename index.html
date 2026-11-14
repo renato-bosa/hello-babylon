@@ -7,6 +7,12 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
     />
     <title>Neon Rush — Luigi</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="tracks/neon-circuit-1.js"></script>
@@ -22,7 +28,7 @@
   <body>
     <div id="mainMenu" class="show">
       <div class="menu-brand">
-        <h1>NEON RUSH</h1>
+        <h1 class="logo-glitch" data-text="NEON RUSH">NEON RUSH</h1>
         <p>CORRIDA FUTURISTA</p>
       </div>
 
@@ -102,10 +108,26 @@
     </div>
     <div id="debugPerfReport"></div>
     <div id="hud">
-      <h1>NEON RUSH</h1>
+      <h1 class="logo-glitch" data-text="NEON RUSH">NEON RUSH</h1>
       <p id="hudControlsHint">↑ acelerar · ↓ frear · ← → virar</p>
-      <p id="speedLabel">Velocidade: 0</p>
-      <p id="progressLabel">Progresso: 0%</p>
+      <div class="hud-meter hud-meter-inline" id="speedMeter">
+        <div class="hud-meter-track speed-track">
+          <div class="hud-meter-fill speed" id="speedFill"></div>
+          <div class="hud-meter-overlay">
+            <span>Velocidade</span>
+            <strong id="speedLabel">0</strong>
+          </div>
+        </div>
+      </div>
+      <div class="hud-meter hud-meter-inline" id="progressMeter">
+        <div class="hud-meter-track progress-track">
+          <div class="hud-meter-fill progress" id="progressFill"></div>
+          <div class="hud-meter-overlay">
+            <span id="progressTitle">Progresso</span>
+            <strong id="progressLabel">0%</strong>
+          </div>
+        </div>
+      </div>
       <p id="placeLabel">Posição: 1º / 3</p>
     </div>
     <div id="countdownOverlay">
@@ -161,7 +183,38 @@
       const canvas = document.getElementById("renderCanvas");
       const speedLabel = document.getElementById("speedLabel");
       const progressLabel = document.getElementById("progressLabel");
+      const progressTitle = document.getElementById("progressTitle");
+      const speedFill = document.getElementById("speedFill");
+      const progressFill = document.getElementById("progressFill");
       const placeLabel = document.getElementById("placeLabel");
+
+      function setMeterFill(el, ratio) {
+        if (!el) return;
+        const pct = Math.max(0, Math.min(1, ratio || 0)) * 100;
+        el.style.width = pct.toFixed(1) + "%";
+      }
+
+      function setSpeedHud(speed, maxSpeed) {
+        const abs = Math.abs(speed || 0);
+        const cap = Math.max(1, maxSpeed || 1);
+        speedLabel.textContent = String(Math.round(abs));
+        setMeterFill(speedFill, abs / cap);
+        if (speedFill) {
+          speedFill.classList.toggle("flash", abs / cap > 0.92);
+        }
+      }
+
+      function snapProgressRatio(ratio) {
+        const clamped = Math.max(0, Math.min(1, ratio || 0));
+        // Visual em degraus de 10% para não distrair
+        return Math.floor(clamped * 10 + 1e-6) / 10;
+      }
+
+      function setProgressHud(ratio, label, title) {
+        if (title && progressTitle) progressTitle.textContent = title;
+        progressLabel.textContent = label;
+        setMeterFill(progressFill, snapProgressRatio(ratio));
+      }
       const mainMenu = document.getElementById("mainMenu");
       const btnStartRace = document.getElementById("btnStartRace");
       const hud = document.getElementById("hud");
@@ -2937,9 +2990,9 @@
           hud.classList.remove("show");
           mainMenu.classList.add("show");
           setCanvasInteractive(false);
-          progressLabel.textContent = "Progresso: 0%";
+          setProgressHud(0, "0%", "Progresso");
           placeLabel.textContent = "Posição: 1º / " + getFieldSize();
-          speedLabel.textContent = "Velocidade: 0";
+          setSpeedHud(0, PHYSICS.maxSpeed);
           refreshAccountStats();
           enterMenuCamera();
           syncMobileControlsVisibility();
@@ -2990,9 +3043,9 @@
           rankingPanel.classList.remove("show", "centered", "racing");
           rankingHint.classList.remove("show");
           rankingList.innerHTML = "";
-          progressLabel.textContent = "Progresso: 0%";
+          setProgressHud(0, "0%", "Progresso");
           placeLabel.textContent = "Posição: 1º / " + getFieldSize();
-          speedLabel.textContent = "Velocidade: 0";
+          setSpeedHud(0, getRacerMaxSpeed(player));
           startCountdown();
           syncMobileControlsVisibility();
         }
@@ -3492,7 +3545,7 @@
             const finalPlace = getPlayerPlace();
             const didWin = registerWinIfFirst(finalPlace);
             const reward = rewardCoinsForPlace(finalPlace);
-            progressLabel.textContent = "Progresso: 100%";
+            setProgressHud(1, "100%", "Progresso");
             placeLabel.textContent =
               "Posição: " + placeText(finalPlace) + " / " + getFieldSize();
             let hint = "";
@@ -3765,31 +3818,27 @@
           const place = getPlayerPlace();
           placeLabel.textContent =
             "Posição: " + placeText(place) + " / " + getFieldSize();
-          speedLabel.textContent =
-            "Velocidade: " + Math.round(Math.abs(player.speed));
+          setSpeedHud(player.speed, getRacerMaxSpeed(player));
 
           if (!player.finished) {
-            const progress = Math.floor(player.progress * 100);
+            const progressRatio = Math.max(0, Math.min(1, player.progress || 0));
+            const stepped = snapProgressRatio(progressRatio);
+            const shown = Math.min(90, Math.round(stepped * 100));
             if (track.totalLaps > 1) {
               const lapShow = Math.min(
                 track.totalLaps,
                 player.lapsCompleted + 1
               );
-              progressLabel.textContent =
-                "Volta " +
-                lapShow +
-                "/" +
-                track.totalLaps +
-                " · " +
-                Math.max(0, Math.min(99, progress)) +
-                "%";
+              setProgressHud(
+                stepped,
+                shown + "%",
+                "Volta " + lapShow + "/" + track.totalLaps
+              );
             } else {
-              progressLabel.textContent =
-                "Progresso: " + Math.max(0, Math.min(99, progress)) + "%";
+              setProgressHud(stepped, shown + "%", "Progresso");
             }
           } else if (!raceOver) {
-            progressLabel.textContent =
-              "Chegou! Aguardando os outros...";
+            setProgressHud(1, "100%", "Chegou!");
           }
         });
 
@@ -3863,15 +3912,14 @@
             setRivalVisibility(true);
             player.mesh.setEnabled(false);
           }
-          progressLabel.textContent =
-            "Bench " +
-            (botBench.trackId || "") +
-            " · run " +
-            botBench.runIndex +
-            "/" +
-            botBench.runsPerTrack;
+          setProgressHud(
+            (botBench.runIndex - 1) / Math.max(1, botBench.runsPerTrack),
+            botBench.runIndex + "/" + botBench.runsPerTrack,
+            "Bench " + (botBench.trackId || "")
+          );
           placeLabel.textContent = "Bots: " + racers.length;
-          speedLabel.textContent = "sim ×" + botBench.simSpeed;
+          setSpeedHud(0, PHYSICS.maxSpeed);
+          speedLabel.textContent = "×" + botBench.simSpeed;
         }
 
         botBenchApi = {
