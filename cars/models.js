@@ -321,13 +321,13 @@
         exhaustR.position.x = 0.4;
         exhaustR.parent = car;
 
-        // Faróis alongados
+        // Faróis alongados (à frente do nariz para evitar z-fighting com a carroceria)
         const headL = BABYLON.MeshBuilder.CreateBox(
           "headL_" + id,
-          { width: 0.42, height: 0.12, depth: 0.1 },
+          { width: 0.42, height: 0.12, depth: 0.14 },
           scene
         );
-        headL.position.set(-0.55, 0.48, 3.2);
+        headL.position.set(-0.55, 0.48, 3.22);
         headL.material = accentMat;
         headL.parent = car;
 
