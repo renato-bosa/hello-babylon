@@ -945,6 +945,9 @@
           redMat.emissiveColor = phase ? redOn : redOff;
           blueMat.emissiveColor = phase ? blueOff : blueOn;
         });
+        car.onDisposeObservable.addOnce(() => {
+          scene.onBeforeRenderObservable.remove(sirenObs);
+        });
 
         return car;
       }
@@ -1180,6 +1183,9 @@
           const pulse = 0.75 + Math.sin(t * 2.2) * 0.3;
           glowMat.emissiveColor = accentColor.scale(pulse);
           glowMat.alpha = 0.45 + Math.sin(t * 2.2) * 0.2;
+        });
+        car.onDisposeObservable.addOnce(() => {
+          scene.onBeforeRenderObservable.remove(hoverObs);
         });
 
         return car;
@@ -1619,7 +1625,23 @@
         return createStarterCar(scene, instanceId, bodyColor, accentColor);
       }
 
-      return createCarByModel;
+      return function (scene, modelId, instanceId, bodyColor, accentColor) {
+        // Cada instância possui seus materiais, inclusive os de peças removidas
+        // durante a construção de variantes como Tropical e Monocar.
+        const existingMaterials = new Set(scene.materials);
+        const car = createCarByModel(
+          scene, modelId, instanceId, bodyColor, accentColor
+        );
+        const materials = scene.materials.filter(function (material) {
+          return !existingMaterials.has(material);
+        });
+        car.onDisposeObservable.addOnce(function () {
+          materials.forEach(function (material) {
+            material.dispose();
+          });
+        });
+        return car;
+      };
     },
   };
 })(window);
