@@ -1,0 +1,79 @@
+{
+  "phase": "after",
+  "date": "2026-11-14T22:38:19.800Z",
+  "browser": "157.0.8103.52",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "deviceScaleFactor": 1,
+  "renderer": "ANGLE / SwiftShader (software)",
+  "seed": 123456789,
+  "warmupMs": 4000,
+  "sampleMs": 4000,
+  "repeats": 3,
+  "scenario": "Câmera de corrida estática; simulação e animações do menu pausadas. Renderização e animações dos modelos permanecem ativas.",
+  "babylonSha256": "51c60a563c10dedd56fd3fe9f903107154ea1fbac309bc0f499491327d124549",
+  "results": [
+    {
+      "id": "neon-circuit-1",
+      "checks": {
+        "start": true,
+        "drive": true,
+        "playerFinishGuard": true,
+        "trackSwitch": true,
+        "disposal": true
+      }
+    },
+    {
+      "id": "sunset-rush",
+      "checks": {
+        "start": true,
+        "drive": true,
+        "playerFinishGuard": true,
+        "trackSwitch": true,
+        "disposal": true
+      }
+    },
+    {
+      "id": "tunnel-rush",
+      "checks": {
+        "start": true,
+        "drive": true,
+        "playerFinishGuard": true,
+        "trackSwitch": true,
+        "disposal": true
+      }
+    },
+    {
+      "id": "praia-rush",
+      "checks": {
+        "start": true,
+        "drive": true,
+        "playerFinishGuard": true,
+        "trackSwitch": true,
+        "disposal": true
+      }
+    },
+    {
+      "id": "natal-race",
+      "checks": {
+        "start": true,
+        "drive": true,
+        "playerFinishGuard": true,
+        "trackSwitch": true,
+        "disposal": true
+      }
+    },
+    {
+      "id": "neon-oval",
+      "checks": {
+        "start": true,
+        "drive": true,
+        "playerFinishGuard": true,
+        "trackSwitch": true,
+        "disposal": true
+      }
+    }
+  ]
+}

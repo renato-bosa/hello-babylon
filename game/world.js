@@ -60,11 +60,10 @@ export function installScene(app, world) {
     }
     const worldLength = worldPath.length();
     const worldPieceCount = Math.ceil(worldLength / step);
-    // Distribui as peças pela volta inteira, sem deixar uma fenda na emenda.
+    // Distribui marcações e cenário pela volta inteira.
     const worldStep = features.ovalArena
       ? worldLength / worldPieceCount
       : step;
-    let pieceIndex = 0;
 
     if (isBeach) {
       // Um único chão de areia — sem fendas pretas entre pedaços
@@ -85,19 +84,10 @@ export function installScene(app, world) {
       }
     } else {
       const roadWidth = features.roadWidth || 14;
-      for (let i = 0; i < worldPieceCount; i++) {
-        const d = i * worldStep;
-        world.roadPieces.push(
-          app.createRoadPiece(
-            world.scene,
-            app.samplePath(worldPath, d),
-            world.roadMat,
-            world.edgeMat,
-            pieceIndex++,
-            roadWidth
-          )
-        );
-      }
+      world.roadPieces.push(...app.createContinuousRoad(
+        world.scene, worldPath, world.roadMat, world.edgeMat, roadWidth,
+        { closed: !!features.ovalArena, dashStep: worldStep }
+      ));
     }
 
     world.finishSample = app.samplePath(world.path3D, world.track.finishDist);

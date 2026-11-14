@@ -1,0 +1,319 @@
+{
+  "phase": "before",
+  "date": "2026-11-14T22:24:19.669Z",
+  "browser": "157.0.8103.52",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "deviceScaleFactor": 1,
+  "renderer": "ANGLE / SwiftShader (software)",
+  "seed": 123456789,
+  "warmupMs": 4000,
+  "sampleMs": 4000,
+  "repeats": 3,
+  "scenario": "Câmera de corrida estática; simulação e animações do menu pausadas. Renderização e animações dos modelos permanecem ativas.",
+  "babylonSha256": "51c60a563c10dedd56fd3fe9f903107154ea1fbac309bc0f499491327d124549",
+  "results": [
+    {
+      "id": "neon-circuit-1",
+      "fraction": 0.38,
+      "babylonVersion": "9.35.0",
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "meshes": 879,
+      "materials": 188,
+      "roadMeshes": 572,
+      "roadVertices": 10868,
+      "roadTriangles": 5434,
+      "raceLength": 769.3762015834855,
+      "laps": 1,
+      "camera": [
+        18.54793337833756,
+        10,
+        270.66484032068996
+      ],
+      "runs": [
+        {
+          "frames": 168,
+          "fps": 41.85568560640565,
+          "frameMsP50": 23.600000023841858,
+          "frameMsP95": 26.19999998807907,
+          "cpuMsP50": 2.700000047683716,
+          "cpuMsP95": 4.900000035762787,
+          "drawCalls": 123,
+          "activeMeshes": 123
+        },
+        {
+          "frames": 167,
+          "fps": 41.94355307388129,
+          "frameMsP50": 23.600000023841858,
+          "frameMsP95": 26.69999998807907,
+          "cpuMsP50": 2.800000011920929,
+          "cpuMsP95": 4.599999964237213,
+          "drawCalls": 123,
+          "activeMeshes": 123
+        },
+        {
+          "frames": 145,
+          "fps": 36.145485579132846,
+          "frameMsP50": 29.600000023841858,
+          "frameMsP95": 44.60000002384186,
+          "cpuMsP50": 2.899999976158142,
+          "cpuMsP95": 4.5,
+          "drawCalls": 123,
+          "activeMeshes": 123
+        }
+      ]
+    },
+    {
+      "id": "sunset-rush",
+      "fraction": 0.35,
+      "babylonVersion": "9.35.0",
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "meshes": 973,
+      "materials": 206,
+      "roadMeshes": 648,
+      "roadVertices": 12312,
+      "roadTriangles": 6156,
+      "raceLength": 898.7070793341275,
+      "laps": 1,
+      "camera": [
+        13.26861304622196,
+        10,
+        262.47431851189066
+      ],
+      "runs": [
+        {
+          "frames": 115,
+          "fps": 28.55854501720015,
+          "frameMsP50": 34.60000002384186,
+          "frameMsP95": 39.5,
+          "cpuMsP50": 5.5,
+          "cpuMsP95": 14.899999976158142,
+          "drawCalls": 125,
+          "activeMeshes": 125
+        },
+        {
+          "frames": 108,
+          "fps": 26.723944154210713,
+          "frameMsP50": 37,
+          "frameMsP95": 40.69999998807907,
+          "cpuMsP50": 6.100000023841858,
+          "cpuMsP95": 15.199999988079071,
+          "drawCalls": 125,
+          "activeMeshes": 125
+        },
+        {
+          "frames": 108,
+          "fps": 26.868894859673983,
+          "frameMsP50": 37,
+          "frameMsP95": 40,
+          "cpuMsP50": 5.399999976158142,
+          "cpuMsP95": 8.400000035762787,
+          "drawCalls": 125,
+          "activeMeshes": 125
+        }
+      ]
+    },
+    {
+      "id": "tunnel-rush",
+      "fraction": 0.22,
+      "babylonVersion": "9.35.0",
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "meshes": 987,
+      "materials": 154,
+      "roadMeshes": 596,
+      "roadVertices": 11324,
+      "roadTriangles": 5662,
+      "raceLength": 812.4093954513853,
+      "laps": 1,
+      "camera": [
+        43.548921695345776,
+        10,
+        157.02235634257215
+      ],
+      "runs": [
+        {
+          "frames": 89,
+          "fps": 21.85792349726776,
+          "frameMsP50": 45.39999997615814,
+          "frameMsP95": 51.799999952316284,
+          "cpuMsP50": 5,
+          "cpuMsP95": 9,
+          "drawCalls": 126,
+          "activeMeshes": 126
+        },
+        {
+          "frames": 85,
+          "fps": 20.947630922693264,
+          "frameMsP50": 46.89999997615814,
+          "frameMsP95": 52.19999998807907,
+          "cpuMsP50": 6.5,
+          "cpuMsP95": 8.5,
+          "drawCalls": 126,
+          "activeMeshes": 126
+        },
+        {
+          "frames": 86,
+          "fps": 21.354637724979685,
+          "frameMsP50": 47.19999998807907,
+          "frameMsP95": 51.19999998807907,
+          "cpuMsP50": 6.299999952316284,
+          "cpuMsP95": 10.399999976158142,
+          "drawCalls": 126,
+          "activeMeshes": 126
+        }
+      ]
+    },
+    {
+      "id": "praia-rush",
+      "fraction": 0.38,
+      "babylonVersion": "9.35.0",
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "meshes": 839,
+      "materials": 46,
+      "roadMeshes": 0,
+      "roadVertices": 0,
+      "roadTriangles": 0,
+      "raceLength": 1147.5763842844967,
+      "laps": 1,
+      "camera": [
+        1.8464506525802928,
+        10,
+        275.4704717164292
+      ],
+      "runs": [
+        {
+          "frames": 97,
+          "fps": 23.99940001521419,
+          "frameMsP50": 41.39999997615814,
+          "frameMsP95": 47,
+          "cpuMsP50": 5.100000023841858,
+          "cpuMsP95": 7.700000047683716,
+          "drawCalls": 110,
+          "activeMeshes": 110
+        },
+        {
+          "frames": 97,
+          "fps": 24.066182000501378,
+          "frameMsP50": 41.5,
+          "frameMsP95": 46,
+          "cpuMsP50": 4.699999988079071,
+          "cpuMsP95": 6.800000011920929,
+          "drawCalls": 110,
+          "activeMeshes": 110
+        },
+        {
+          "frames": 98,
+          "fps": 24.43201853818227,
+          "frameMsP50": 41.39999997615814,
+          "frameMsP95": 45.5,
+          "cpuMsP50": 4.300000011920929,
+          "cpuMsP95": 6.400000035762787,
+          "drawCalls": 110,
+          "activeMeshes": 110
+        }
+      ]
+    },
+    {
+      "id": "natal-race",
+      "fraction": 0.3,
+      "babylonVersion": "9.35.0",
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "meshes": 1889,
+      "materials": 400,
+      "roadMeshes": 1016,
+      "roadVertices": 19304,
+      "roadTriangles": 9652,
+      "raceLength": 1502.1418535907305,
+      "laps": 1,
+      "camera": [
+        -54.71396808945238,
+        10,
+        394.6825823065329
+      ],
+      "runs": [
+        {
+          "frames": 104,
+          "fps": 25.859255353715316,
+          "frameMsP50": 38.10000002384186,
+          "frameMsP95": 43.19999998807907,
+          "cpuMsP50": 7.100000023841858,
+          "cpuMsP95": 21.5,
+          "drawCalls": 143,
+          "activeMeshes": 143
+        },
+        {
+          "frames": 107,
+          "fps": 26.62781350474341,
+          "frameMsP50": 37.200000047683716,
+          "frameMsP95": 40,
+          "cpuMsP50": 6.200000047683716,
+          "cpuMsP95": 19,
+          "drawCalls": 143,
+          "activeMeshes": 143
+        },
+        {
+          "frames": 106,
+          "fps": 26.297335203287545,
+          "frameMsP50": 38,
+          "frameMsP95": 41.39999997615814,
+          "cpuMsP50": 6.5,
+          "cpuMsP95": 19.200000047683716,
+          "drawCalls": 143,
+          "activeMeshes": 143
+        }
+      ]
+    },
+    {
+      "id": "neon-oval",
+      "fraction": 0.86,
+      "babylonVersion": "9.35.0",
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "meshes": 1760,
+      "materials": 112,
+      "roadMeshes": 508,
+      "roadVertices": 9652,
+      "roadTriangles": 4826,
+      "raceLength": 4389.87921954698,
+      "laps": 5,
+      "camera": [
+        59.93891304721747,
+        10,
+        -164.270220448364
+      ],
+      "runs": [
+        {
+          "frames": 82,
+          "fps": 20.354827361030633,
+          "frameMsP50": 49,
+          "frameMsP95": 52.5,
+          "cpuMsP50": 10.899999976158142,
+          "cpuMsP95": 28.400000035762787,
+          "drawCalls": 226,
+          "activeMeshes": 226
+        },
+        {
+          "frames": 81,
+          "fps": 20.013509118595408,
+          "frameMsP50": 49.5,
+          "frameMsP95": 53.39999997615814,
+          "cpuMsP50": 10.600000023841858,
+          "cpuMsP95": 28.5,
+          "drawCalls": 226,
+          "activeMeshes": 226
+        },
+        {
+          "frames": 81,
+          "fps": 19.980019980019982,
+          "frameMsP50": 50,
+          "frameMsP95": 54.30000001192093,
+          "cpuMsP50": 11.5,
+          "cpuMsP95": 25.400000035762787,
+          "drawCalls": 226,
+          "activeMeshes": 226
+        }
+      ]
+    }
+  ]
+}

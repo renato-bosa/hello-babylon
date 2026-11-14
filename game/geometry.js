@@ -9,51 +9,96 @@ export function installApp(app) {
     return mat;
   };
 
-  app.createRoadPiece = function createRoadPiece(scene, sample, roadMat, edgeMat, index, roadWidth) {
-    const pieceLength = 8;
-    const width = roadWidth || 14;
+  app.createContinuousRoad = function createContinuousRoad(scene, path, roadMat, edgeMat, width, options) {
+    const length = path.length();
     const half = width / 2;
-    const group = new BABYLON.TransformNode("roadPiece_" + index, scene);
-    group.position.copyFrom(sample.position);
-    group.rotation.y = app.yawFromTangent(sample.tangent);
-    group.rotation.x = app.pitchFromTangent(sample.tangent);
-
-    const road = BABYLON.MeshBuilder.CreateGround(
-      "road_" + index,
-      { width: width, height: pieceLength },
-      scene
-    );
-    road.material = roadMat;
-    road.parent = group;
-
-    const leftEdge = BABYLON.MeshBuilder.CreateBox(
-      "leftEdge_" + index,
-      { width: 0.25, height: 0.2, depth: pieceLength },
-      scene
-    );
-    leftEdge.position.set(-half, 0.1, 0);
-    leftEdge.material = edgeMat;
-    leftEdge.parent = group;
-
-    const rightEdge = BABYLON.MeshBuilder.CreateBox(
-      "rightEdge_" + index,
-      { width: 0.25, height: 0.2, depth: pieceLength },
-      scene
-    );
-    rightEdge.position.set(half, 0.1, 0);
-    rightEdge.material = edgeMat;
-    rightEdge.parent = group;
-
-    const dash = BABYLON.MeshBuilder.CreateBox(
-      "dash_" + index,
-      { width: 0.2, height: 0.05, depth: 3 },
-      scene
-    );
-    dash.position.set(0, 0.03, 0);
-    dash.material = edgeMat;
-    dash.parent = group;
-
-    return group;
+    const { closed, dashStep } = options;
+    // Blocos espaciais mantêm o descarte fora da câmera. As seções nas emendas
+    // são compartilhadas; não há retângulos sobrepostos nas curvas.
+    const chunkLength = 112;
+    const sampleStep = 2;
+    const start = closed ? 0 : -4;
+    const end = closed ? length : Math.max(length, (Math.ceil(length / dashStep) - 1) * dashStep + 4);
+    const section = distance => {
+      const sample = app.samplePath(path, closed && distance === length ? 0 : distance);
+      const position = sample.position.clone();
+      if (distance < 0) position.addInPlace(sample.tangent.scale(distance));
+      if (distance > length) position.addInPlace(sample.tangent.scale(distance - length));
+      return { position, side: sample.binormal, up: BABYLON.Vector3.Cross(sample.tangent, sample.binormal).normalize() };
+    };
+    const point = (s, x, y) => s.position.add(s.side.scale(x)).add(s.up.scale(y));
+    const buffer = () => ({ positions: [], indices: [], normals: [] });
+    const strip = (data, sections, x1, y1, x2, y2) => {
+      const offset = data.positions.length / 3;
+      sections.forEach(s => {
+        data.positions.push(...point(s, x1, y1).asArray(), ...point(s, x2, y2).asArray());
+      });
+      for (let i = 0; i < sections.length - 1; i++) {
+        const a = offset + i * 2;
+        data.indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
+      }
+    };
+    const mesh = (name, data, material, parent) => {
+      const result = new BABYLON.Mesh(name, scene);
+      for (let i = 0; i < data.positions.length; i += 3) {
+        data.positions[i] -= parent.position.x;
+        data.positions[i + 1] -= parent.position.y;
+        data.positions[i + 2] -= parent.position.z;
+      }
+      BABYLON.VertexData.ComputeNormals(data.positions, data.indices, data.normals);
+      const vertices = new BABYLON.VertexData();
+      Object.assign(vertices, data);
+      vertices.applyToMesh(result);
+      result.material = material;
+      result.parent = parent;
+      return result;
+    };
+    const dashBox = BABYLON.VertexData.CreateBox({ width: 0.2, height: 0.05, depth: 3 });
+    const groups = [];
+    let previous = section(start);
+    let dashIndex = 0;
+    for (let from = start; from < end; from += chunkLength) {
+      const to = Math.min(end, from + chunkLength);
+      const count = Math.ceil((to - from) / sampleStep);
+      const sections = [previous];
+      for (let i = 1; i <= count; i++) sections.push(section(from + (to - from) * i / count));
+      previous = sections[sections.length - 1];
+      const id = groups.length;
+      const group = new BABYLON.TransformNode("roadPiece_" + id, scene);
+      group.position.copyFrom(sections[0].position);
+      const road = buffer();
+      strip(road, sections, -half, 0, half, 0);
+      mesh("road_" + id, road, roadMat, group);
+      const edges = buffer();
+      for (const side of [-1, 1]) {
+        const left = side * half - 0.125;
+        const right = side * half + 0.125;
+        strip(edges, sections, left, 0, left, 0.2);
+        strip(edges, sections, left, 0.2, right, 0.2);
+        strip(edges, sections, right, 0.2, right, 0);
+        strip(edges, sections, right, 0, left, 0);
+      }
+      mesh("roadEdges_" + id, edges, edgeMat, group);
+      const dashes = buffer();
+      while (dashIndex * dashStep < Math.min(to, length)) {
+        const sample = app.samplePath(path, dashIndex++ * dashStep);
+        const rotation = BABYLON.Quaternion.RotationYawPitchRoll(
+          app.yawFromTangent(sample.tangent), app.pitchFromTangent(sample.tangent), 0
+        );
+        const up = BABYLON.Vector3.Cross(sample.tangent, sample.binormal).normalize();
+        const transform = BABYLON.Matrix.Compose(BABYLON.Vector3.One(), rotation, sample.position.add(up.scale(0.03)));
+        const offset = dashes.positions.length / 3;
+        for (let i = 0; i < dashBox.positions.length; i += 3) {
+          dashes.positions.push(...BABYLON.Vector3.TransformCoordinates(
+            BABYLON.Vector3.FromArray(dashBox.positions, i), transform
+          ).asArray());
+        }
+        dashes.indices.push(...dashBox.indices.map(i => i + offset));
+      }
+      if (dashes.indices.length) mesh("roadDashes_" + id, dashes, edgeMat, group);
+      groups.push(group);
+    }
+    return groups;
   };
 
   app.createOvalGrandstand = function createOvalGrandstand(scene, sample, dir, roadHalf, id, mats) {
