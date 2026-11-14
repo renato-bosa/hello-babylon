@@ -1538,6 +1538,22 @@ const createScene = function () {
     const features = track.data.features || {};
     const isBeach = !!features.beach;
     const step = 7;
+    let worldPath = path3D;
+    if (features.ovalArena) {
+      // Só o cenário fecha uma volta; o percurso da corrida fica intacto.
+      // Evita duplicar a pré-largada sobre a saída da última curva do oval.
+      const loopPoints = path3D
+        .slice(track.startDist / trackLength, track.finishDist / trackLength)
+        .getCurve();
+      loopPoints.push(loopPoints[0].clone());
+      worldPath = new BABYLON.Path3D(loopPoints, new BABYLON.Vector3(0, 1, 0));
+    }
+    const worldLength = worldPath.length();
+    const worldPieceCount = Math.ceil(worldLength / step);
+    // Distribui as peças pela volta inteira, sem deixar uma fenda na emenda.
+    const worldStep = features.ovalArena
+      ? worldLength / worldPieceCount
+      : step;
     let pieceIndex = 0;
 
     if (isBeach) {
@@ -1559,11 +1575,12 @@ const createScene = function () {
       }
     } else {
       const roadWidth = features.roadWidth || 14;
-      for (let d = 0; d < trackLength; d += step) {
+      for (let i = 0; i < worldPieceCount; i++) {
+        const d = i * worldStep;
         roadPieces.push(
           createRoadPiece(
             scene,
-            samplePath(path3D, d),
+            samplePath(worldPath, d),
             roadMat,
             edgeMat,
             pieceIndex++,
@@ -1652,9 +1669,9 @@ const createScene = function () {
       let cx = 0;
       let cz = 0;
       let samples = 0;
-      for (let d = 0; d < trackLength; d += 18) {
-        const p = path3D.getPointAt(
-          Math.max(0, Math.min(1, d / trackLength))
+      for (let d = 0; d < worldLength; d += 18) {
+        const p = worldPath.getPointAt(
+          Math.max(0, Math.min(1, d / worldLength))
         );
         cx += p.x;
         cz += p.z;
@@ -1681,15 +1698,17 @@ const createScene = function () {
 
       let standId = 0;
       // Arquibancada nos dois lados (bowl) — sempre visível
-      for (let d = 0; d < trackLength; d += step) {
-        const sample = samplePath(path3D, d);
+      for (let i = 0; i < worldPieceCount; i++) {
+        const d = i * worldStep;
+        const sample = samplePath(worldPath, d);
         [-1, 1].forEach(function (dir) {
           beachProps.push(
             createOvalGrandstand(
               scene,
               sample,
               dir,
-              roadHalf,
+              // Folga para os cantos das peças retas nas curvas mais fechadas.
+              roadHalf + 2,
               standId++,
               ovalMats
             )
@@ -1699,8 +1718,8 @@ const createScene = function () {
 
       // Prédios atrás do muro (fora do bowl)
       let buildingId = 0;
-      for (let d = 20; d < trackLength; d += 28) {
-        const sample = samplePath(path3D, d);
+      for (let d = 20; d < worldLength; d += 28) {
+        const sample = samplePath(worldPath, d);
         const side = sample.binormal;
         [-1, 1].forEach(function (dir) {
           const pos = sample.position.add(
