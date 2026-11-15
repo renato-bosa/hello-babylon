@@ -1169,6 +1169,114 @@ body {
   }
 }
 
+/* Celular em paisagem: os títulos dos painéis começam abaixo do logotipo.
+   A reserva acompanha o tamanho da marca sem alterar retrato ou desktop. */
+@media (orientation: landscape) and (max-height: 500px) and (max-width: 1024px) and (pointer: coarse) {
+  .menu-rail {
+    gap: 4px;
+    max-height: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
+    overflow-y: auto;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+  }
+
+  .menu-rail > button {
+    flex-shrink: 0;
+  }
+
+  .rail-btn {
+    min-height: 44px;
+    flex-direction: row;
+    gap: 3px;
+    padding: 6px 3px;
+    font-size: clamp(10px, 1.4vw, 11px);
+    letter-spacing: 0;
+  }
+
+  .rail-btn .icon {
+    font-size: 14px;
+  }
+
+  .menu-account {
+    gap: 3px;
+    padding: 4px;
+  }
+
+  .menu-account-row {
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 3px;
+    width: 100%;
+  }
+
+  .menu-account-row small {
+    letter-spacing: 0;
+  }
+
+  .menu-account-row strong {
+    font-size: 11px;
+  }
+
+  .menu-money-value {
+    gap: 3px;
+    font-size: 12px;
+    letter-spacing: 0;
+  }
+
+  .menu-money-value .coin-icon {
+    width: 12px;
+    height: 12px;
+  }
+
+  .menu-account .boost-badge {
+    margin-top: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  /* Rolagem de segurança se a área útil for menor que os alvos de toque. */
+  html:has(#mainMenu.show),
+  body:has(#mainMenu.show) {
+    touch-action: pan-y;
+  }
+
+  .account-sheet,
+  .missions-sheet {
+    top: calc(18px + clamp(28px, 6vw, 48px) * 1.3 + 12px);
+    padding-top: 0;
+    gap: 10px;
+    overflow-y: auto;
+    touch-action: pan-y;
+  }
+
+  .account-header-text h2,
+  .missions-header-text h2 {
+    font-size: 24px;
+    line-height: 1.2;
+  }
+
+  .account-header-text p,
+  .missions-header-text p {
+    margin-top: 4px;
+    font-size: 12px;
+  }
+
+  .account-card {
+    flex-shrink: 0;
+    margin: 0;
+  }
+
+  .missions-carousel {
+    flex: 1 0 auto;
+  }
+
+  /* Permite alcançar o conteúdo em telas baixas, somente com painel aberto. */
+  html:has(#accountPanel.show, #missionsPanel.show),
+  body:has(#accountPanel.show, #missionsPanel.show) {
+    touch-action: pan-y;
+  }
+}
+
 #hud h1 {
   margin: 0 0 6px;
   font-family: "Orbitron", "Segoe UI", Tahoma, sans-serif;
