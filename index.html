@@ -35,7 +35,14 @@
       <aside class="menu-rail hit" aria-label="Opções">
         <div class="menu-money" title="Moedas">
           <span>MOEDAS</span>
-          <strong id="moneyLabel">0</strong>
+          <strong class="menu-money-value">
+            <svg class="coin-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <circle cx="12" cy="12" r="10" fill="#ffd24a" stroke="#c99212" stroke-width="2"/>
+              <circle cx="12" cy="12" r="7.25" fill="none" stroke="#ffe79a" stroke-width="1.4"/>
+              <text x="12" y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#8a6200" font-family="Orbitron, sans-serif">$</text>
+            </svg>
+            <span id="moneyLabel">0</span>
+          </strong>
           <span id="ticketBadge" class="boost-badge ticket" hidden>Ticket ×0</span>
           <span id="multiplierBadge" class="boost-badge mult" hidden>×3 próxima</span>
           <span id="tireBadge" class="boost-badge tire" hidden>Pneu +25%</span>
@@ -122,7 +129,28 @@
             Fechar
           </button>
         </div>
-        <div id="missionsList" class="missions-list"></div>
+        <div class="missions-carousel">
+          <button
+            type="button"
+            class="missions-nav prev"
+            id="btnMissionsPrev"
+            aria-label="Missão anterior"
+          >
+            ‹
+          </button>
+          <div class="missions-viewport" id="missionsViewport">
+            <div id="missionsList" class="missions-track"></div>
+          </div>
+          <button
+            type="button"
+            class="missions-nav next"
+            id="btnMissionsNext"
+            aria-label="Próxima missão"
+          >
+            ›
+          </button>
+        </div>
+        <div id="missionsDots" class="missions-dots" aria-label="Missões"></div>
       </div>
     </div>
     <div id="debugPerfReport"></div>

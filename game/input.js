@@ -104,6 +104,8 @@ export function installScene(app, world) {
       return;
     }
     if (world.missionsOpen) {
+      if (leftPressed) app.stepMissionsCarousel(-1);
+      if (rightPressed) app.stepMissionsCarousel(1);
       if (app.consumeVirtualBack()) world.closeMissions();
       app.consumeVirtualConfirm();
       return;

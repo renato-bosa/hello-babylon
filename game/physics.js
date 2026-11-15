@@ -103,12 +103,31 @@ export function installScene(app, world) {
       racer.finished ? 0 : 0.4,
       Math.min(1, Math.abs(racer.speed) / 10)
     );
-    if (input.left) racer.mesh.rotation.y -= app.PHYSICS.turnRate * steerPower * dt;
-    if (input.right) racer.mesh.rotation.y += app.PHYSICS.turnRate * steerPower * dt;
+    const turningLeft = !!input.left && !input.right;
+    const turningRight = !!input.right && !input.left;
+    const isTurning = turningLeft || turningRight;
+
+    if (turningLeft) {
+      racer.mesh.rotation.y -= app.PHYSICS.turnRate * steerPower * dt;
+    }
+    if (turningRight) {
+      racer.mesh.rotation.y += app.PHYSICS.turnRate * steerPower * dt;
+    }
+
+    // Perda de velocidade na curva: proporcional à intensidade do giro e ao tempo.
+    // Vale para todos os carros (jogador e bots usam applyDrive).
+    // Forma aditiva: a aceleração não "cancela" a curva por completo.
+    if (isTurning && Math.abs(racer.speed) > 0.5) {
+      const turnNorm = Math.min(1, Math.max(0, steerPower));
+      const lossRate =
+        app.PHYSICS.cornerDrag * turnNorm * Math.abs(racer.speed);
+      racer.speed -= Math.sign(racer.speed) * lossRate * dt;
+      if (Math.abs(racer.speed) < 0.2) racer.speed = 0;
+    }
 
     let targetRoll = 0;
-    if (input.left) targetRoll = 0.18;
-    if (input.right) targetRoll = -0.18;
+    if (turningLeft) targetRoll = 0.18;
+    if (turningRight) targetRoll = -0.18;
     racer.mesh.rotation.z +=
       (targetRoll - racer.mesh.rotation.z) * Math.min(1, 8 * dt);
 
@@ -307,6 +326,8 @@ export function initializePhysics(app) {
     brake: 40,
     friction: 10,
     turnRate: 1.2,
+    // Fração da velocidade perdida por segundo a pleno giro
+    cornerDrag: 0.5,
     laneLimit: 5.5,
   };
 }

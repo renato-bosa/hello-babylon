@@ -298,83 +298,329 @@ export function installApp(app) {
     return true;
   };
 
-  app.refreshMissionsPanel = function refreshMissionsPanel() {
-    const list = document.getElementById("missionsList");
-    if (!list) return;
-    app.reconcileMissionResets();
-    list.innerHTML = "";
+  app.missionsCarouselIndex = 0;
 
-    app.MISSION_DEFS.forEach(function (mission) {
-      const progress = app.getMissionProgress(mission.id);
-      const claimed = app.isMissionClaimed(mission.id);
-      const cooldownMs = claimed ? app.getMissionCooldownMs(mission.id) : 0;
-      const done = progress >= mission.target;
-      const ticketReward = app.isMissionTicketReward(mission.id);
-      const row = document.createElement("div");
-      row.className =
-        "mission-card" +
-        (claimed ? " claimed" : "") +
-        (done && !claimed ? " ready" : "") +
-        (ticketReward ? " ticket-reward" : "");
+  app.getMissionsCarouselCount = function getMissionsCarouselCount() {
+    return app.MISSION_DEFS.length;
+  };
 
-      const head = document.createElement("div");
-      head.className = "mission-card-head";
+  app.clampMissionsCarouselIndex = function clampMissionsCarouselIndex(index) {
+    const max = Math.max(0, app.getMissionsCarouselCount() - 1);
+    return Math.max(0, Math.min(max, index | 0));
+  };
 
-      const title = document.createElement("strong");
-      title.textContent = mission.title;
+  app.applyMissionsCarouselTransform = function applyMissionsCarouselTransform(
+    dragOffsetPx
+  ) {
+    const track = document.getElementById("missionsList");
+    const viewport = document.getElementById("missionsViewport");
+    if (!track || !viewport) return;
+    const width = viewport.clientWidth || 1;
+    const offset =
+      -app.missionsCarouselIndex * width + (dragOffsetPx || 0);
+    track.style.transform = "translate3d(" + offset + "px, 0, 0)";
+  };
 
-      const reward = document.createElement("span");
-      reward.className =
-        "mission-reward" + (ticketReward ? " ticket" : "");
+  app.updateMissionsCarouselChrome = function updateMissionsCarouselChrome() {
+    const prev = document.getElementById("btnMissionsPrev");
+    const next = document.getElementById("btnMissionsNext");
+    const dots = document.getElementById("missionsDots");
+    app.missionsCarouselIndex = app.clampMissionsCarouselIndex(
+      app.missionsCarouselIndex
+    );
+    if (prev) prev.disabled = app.getMissionsCarouselCount() <= 1;
+    if (next) next.disabled = app.getMissionsCarouselCount() <= 1;
+    if (dots) {
+      const buttons = dots.querySelectorAll(".missions-dot");
+      buttons.forEach(function (dot, i) {
+        dot.classList.toggle("active", i === app.missionsCarouselIndex);
+      });
+    }
+    app.applyMissionsCarouselTransform(0);
+  };
+
+  app.setMissionsCarouselIndex = function setMissionsCarouselIndex(index) {
+    app.missionsCarouselIndex = app.clampMissionsCarouselIndex(index);
+    app.updateMissionsCarouselChrome();
+  };
+
+  app.stepMissionsCarousel = function stepMissionsCarousel(delta) {
+    const count = app.getMissionsCarouselCount();
+    if (count <= 0) return;
+    const next =
+      ((app.missionsCarouselIndex + delta) % count + count) % count;
+    app.setMissionsCarouselIndex(next);
+  };
+
+  app.buildMissionCard = function buildMissionCard(mission) {
+    const progress = app.getMissionProgress(mission.id);
+    const claimed = app.isMissionClaimed(mission.id);
+    const cooldownMs = claimed ? app.getMissionCooldownMs(mission.id) : 0;
+    const done = progress >= mission.target;
+    const ticketReward = app.isMissionTicketReward(mission.id);
+
+    const slide = document.createElement("div");
+    slide.className = "missions-slide";
+    slide.dataset.missionId = mission.id;
+
+    const row = document.createElement("div");
+    row.className =
+      "mission-card" +
+      (claimed ? " claimed" : "") +
+      (done && !claimed ? " ready" : "") +
+      (ticketReward ? " ticket-reward" : "");
+
+    const head = document.createElement("div");
+    head.className = "mission-card-head";
+
+    const title = document.createElement("strong");
+    title.className = "mission-title";
+    title.textContent = mission.title;
+
+    const reward = document.createElement("span");
+    reward.className = "mission-reward" + (ticketReward ? " ticket" : "");
+    reward.textContent = app.getMissionRewardLabel(mission);
+
+    head.appendChild(title);
+    head.appendChild(reward);
+
+    const desc = document.createElement("p");
+    desc.className = "mission-desc";
+    desc.textContent = mission.description;
+
+    const foot = document.createElement("div");
+    foot.className = "mission-card-foot";
+
+    const prog = document.createElement("span");
+    prog.className = "mission-progress";
+    if (claimed && cooldownMs > 0) {
+      prog.textContent = "Volta em " + app.formatMissionCooldown(cooldownMs);
+    } else {
+      prog.textContent =
+        Math.min(progress, mission.target) + " / " + mission.target;
+    }
+
+    const action = document.createElement("button");
+    action.type = "button";
+    action.className = "mission-claim";
+    if (claimed) {
+      action.textContent = "Aguardando";
+      action.disabled = true;
+    } else if (done) {
+      action.textContent = "Receber";
+      action.addEventListener("click", function () {
+        app.claimMissionReward(mission.id);
+      });
+    } else {
+      action.textContent = "Em andamento";
+      action.disabled = true;
+    }
+
+    foot.appendChild(prog);
+    foot.appendChild(action);
+    row.appendChild(head);
+    row.appendChild(desc);
+    row.appendChild(foot);
+    slide.appendChild(row);
+    return slide;
+  };
+
+  app.updateMissionCardContent = function updateMissionCardContent(
+    slide,
+    mission
+  ) {
+    const progress = app.getMissionProgress(mission.id);
+    const claimed = app.isMissionClaimed(mission.id);
+    const cooldownMs = claimed ? app.getMissionCooldownMs(mission.id) : 0;
+    const done = progress >= mission.target;
+    const ticketReward = app.isMissionTicketReward(mission.id);
+    const card = slide.querySelector(".mission-card");
+    if (!card) return;
+
+    card.className =
+      "mission-card" +
+      (claimed ? " claimed" : "") +
+      (done && !claimed ? " ready" : "") +
+      (ticketReward ? " ticket-reward" : "");
+
+    const reward = card.querySelector(".mission-reward");
+    if (reward) {
+      reward.className = "mission-reward" + (ticketReward ? " ticket" : "");
       reward.textContent = app.getMissionRewardLabel(mission);
+    }
 
-      head.appendChild(title);
-      head.appendChild(reward);
-
-      const desc = document.createElement("p");
-      desc.className = "mission-desc";
-      desc.textContent = mission.description;
-
-      const foot = document.createElement("div");
-      foot.className = "mission-card-foot";
-
-      const prog = document.createElement("span");
-      prog.className = "mission-progress";
+    const prog = card.querySelector(".mission-progress");
+    if (prog) {
       if (claimed && cooldownMs > 0) {
         prog.textContent = "Volta em " + app.formatMissionCooldown(cooldownMs);
       } else {
         prog.textContent =
           Math.min(progress, mission.target) + " / " + mission.target;
       }
+    }
 
-      const action = document.createElement("button");
-      action.type = "button";
-      action.className = "mission-claim";
-      if (claimed) {
-        action.textContent = "Aguardando";
-        action.disabled = true;
-      } else if (done) {
-        action.textContent = "Receber";
-        action.addEventListener("click", function () {
-          app.claimMissionReward(mission.id);
-        });
-      } else {
-        action.textContent = "Em andamento";
-        action.disabled = true;
+    const action = card.querySelector(".mission-claim");
+    if (action) {
+      const nextLabel = claimed
+        ? "Aguardando"
+        : done
+          ? "Receber"
+          : "Em andamento";
+      const shouldEnable = !claimed && done;
+      if (
+        action.textContent !== nextLabel ||
+        action.disabled !== !shouldEnable
+      ) {
+        const fresh = document.createElement("button");
+        fresh.type = "button";
+        fresh.className = "mission-claim";
+        fresh.textContent = nextLabel;
+        fresh.disabled = !shouldEnable;
+        if (shouldEnable) {
+          fresh.addEventListener("click", function () {
+            app.claimMissionReward(mission.id);
+          });
+        }
+        action.replaceWith(fresh);
       }
+    }
+  };
 
-      foot.appendChild(prog);
-      foot.appendChild(action);
-
-      row.appendChild(head);
-      row.appendChild(desc);
-      row.appendChild(foot);
-      list.appendChild(row);
+  app.refreshMissionsDots = function refreshMissionsDots() {
+    const dots = document.getElementById("missionsDots");
+    if (!dots) return;
+    dots.innerHTML = "";
+    app.MISSION_DEFS.forEach(function (_mission, i) {
+      const dot = document.createElement("button");
+      dot.type = "button";
+      dot.className =
+        "missions-dot" + (i === app.missionsCarouselIndex ? " active" : "");
+      dot.setAttribute("aria-label", "Missão " + (i + 1));
+      dot.addEventListener("click", function () {
+        app.setMissionsCarouselIndex(i);
+      });
+      dots.appendChild(dot);
     });
+  };
+
+  app.refreshMissionsPanel = function refreshMissionsPanel() {
+    const list = document.getElementById("missionsList");
+    if (!list) return;
+    app.reconcileMissionResets();
+
+    const existing = list.querySelectorAll(".missions-slide");
+    const canPatch =
+      existing.length === app.MISSION_DEFS.length &&
+      Array.prototype.every.call(existing, function (slide, i) {
+        return slide.dataset.missionId === app.MISSION_DEFS[i].id;
+      });
+
+    if (canPatch) {
+      existing.forEach(function (slide, i) {
+        app.updateMissionCardContent(slide, app.MISSION_DEFS[i]);
+      });
+    } else {
+      list.innerHTML = "";
+      app.MISSION_DEFS.forEach(function (mission) {
+        list.appendChild(app.buildMissionCard(mission));
+      });
+      app.refreshMissionsDots();
+    }
+
+    app.missionsCarouselIndex = app.clampMissionsCarouselIndex(
+      app.missionsCarouselIndex
+    );
+    app.updateMissionsCarouselChrome();
   };
 }
 
 export function installScene(app, world) {
+  world.bindMissionsCarouselInteractions = function bindMissionsCarouselInteractions() {
+    if (world.missionsCarouselBound) return;
+    world.missionsCarouselBound = true;
+
+    const viewport = document.getElementById("missionsViewport");
+    const track = document.getElementById("missionsList");
+    if (!viewport || !track) return;
+
+    let pointerId = null;
+    let startX = 0;
+    let startY = 0;
+    let dragX = 0;
+    let dragging = false;
+    let axisLocked = null;
+
+    function endDrag(finish) {
+      if (pointerId == null) return;
+      track.classList.remove("dragging");
+      if (finish) {
+        const width = viewport.clientWidth || 1;
+        const threshold = Math.max(40, width * 0.18);
+        if (dragX <= -threshold) app.stepMissionsCarousel(1);
+        else if (dragX >= threshold) app.stepMissionsCarousel(-1);
+        else app.updateMissionsCarouselChrome();
+      } else {
+        app.updateMissionsCarouselChrome();
+      }
+      pointerId = null;
+      dragging = false;
+      axisLocked = null;
+      dragX = 0;
+    }
+
+    viewport.addEventListener(
+      "pointerdown",
+      function (e) {
+        if (e.button != null && e.button !== 0) return;
+        if (e.target && e.target.closest && e.target.closest("button")) return;
+        pointerId = e.pointerId;
+        startX = e.clientX;
+        startY = e.clientY;
+        dragX = 0;
+        dragging = true;
+        axisLocked = null;
+        track.classList.add("dragging");
+        try {
+          viewport.setPointerCapture(e.pointerId);
+        } catch (err) {}
+      },
+      { passive: true }
+    );
+
+    viewport.addEventListener(
+      "pointermove",
+      function (e) {
+        if (!dragging || e.pointerId !== pointerId) return;
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (!axisLocked) {
+          if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return;
+          axisLocked = Math.abs(dx) >= Math.abs(dy) ? "x" : "y";
+          if (axisLocked === "y") {
+            endDrag(false);
+            return;
+          }
+        }
+        if (axisLocked !== "x") return;
+        dragX = dx;
+        app.applyMissionsCarouselTransform(dragX);
+      },
+      { passive: true }
+    );
+
+    function onPointerUp(e) {
+      if (e.pointerId !== pointerId) return;
+      endDrag(true);
+    }
+
+    viewport.addEventListener("pointerup", onPointerUp);
+    viewport.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("resize", function () {
+      if (!world.missionsOpen) return;
+      app.updateMissionsCarouselChrome();
+    });
+  };
+
   world.openMissions = function openMissions() {
     if (!world.inMenu || app.perfTestRunning) return;
     world.closeGarage({ restoreCar: true });
@@ -384,7 +630,9 @@ export function installScene(app, world) {
     const panel = document.getElementById("missionsPanel");
     panel.classList.add("show");
     panel.setAttribute("aria-hidden", "false");
+    world.bindMissionsCarouselInteractions();
     app.refreshMissionsPanel();
+    app.setMissionsCarouselIndex(app.missionsCarouselIndex || 0);
     if (world.missionsRefreshTimer) {
       clearInterval(world.missionsRefreshTimer);
     }
@@ -441,6 +689,18 @@ export function bindMissionsControls(app, world) {
   if (closeBtn) {
     closeBtn.addEventListener("click", function () {
       world.closeMissions();
+    });
+  }
+  const prevBtn = document.getElementById("btnMissionsPrev");
+  if (prevBtn) {
+    prevBtn.addEventListener("click", function () {
+      app.stepMissionsCarousel(-1);
+    });
+  }
+  const nextBtn = document.getElementById("btnMissionsNext");
+  if (nextBtn) {
+    nextBtn.addEventListener("click", function () {
+      app.stepMissionsCarousel(1);
     });
   }
 }

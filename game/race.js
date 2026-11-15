@@ -96,6 +96,15 @@ export function installScene(app, world) {
     world.enterMenuCamera();
     if (typeof world.closeMissions === "function") world.closeMissions();
     world.syncMobileControlsVisibility();
+    const pendingFly = app.pendingCoinFly;
+    app.pendingCoinFly = null;
+    if (pendingFly && pendingFly.amount > 0 && typeof app.playCoinFlyCelebration === "function") {
+      requestAnimationFrame(function () {
+        app.playCoinFlyCelebration(pendingFly);
+      });
+    } else if (typeof app.refreshMoneyLabel === "function") {
+      app.refreshMoneyLabel();
+    }
   };
 
   world.startCountdown = function startCountdown() {
@@ -266,6 +275,12 @@ export function bindRaceControls(app, world) {
       if (e.code === "Escape") {
         e.preventDefault();
         world.closeMissions();
+      } else if (e.code === "ArrowLeft" || e.code === "KeyA") {
+        e.preventDefault();
+        app.stepMissionsCarousel(-1);
+      } else if (e.code === "ArrowRight" || e.code === "KeyD") {
+        e.preventDefault();
+        app.stepMissionsCarousel(1);
       }
       return;
     }

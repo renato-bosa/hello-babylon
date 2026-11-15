@@ -119,8 +119,23 @@ export function installApp(app) {
     }
   };
 
-  app.refreshMoneyLabel = function refreshMoneyLabel() {
-    app.moneyLabel.textContent = String(app.coins);
+  app.getCoinIconHtml = function getCoinIconHtml(className) {
+    return (
+      '<svg class="' +
+      (className || "coin-icon") +
+      '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+      '<circle cx="12" cy="12" r="10" fill="#ffd24a" stroke="#c99212" stroke-width="2"/>' +
+      '<circle cx="12" cy="12" r="7.25" fill="none" stroke="#ffe79a" stroke-width="1.4"/>' +
+      '<text x="12" y="16" text-anchor="middle" font-size="11" font-weight="800" fill="#8a6200" font-family="Orbitron, sans-serif">$</text>' +
+      "</svg>"
+    );
+  };
+
+  app.refreshMoneyLabel = function refreshMoneyLabel(displayCoins) {
+    if (!app._coinFlyActive || displayCoins != null) {
+      const shown = displayCoins != null ? displayCoins : app.coins;
+      app.moneyLabel.textContent = String(shown);
+    }
     const ticketBadge = document.getElementById("ticketBadge");
     if (ticketBadge) {
       const tickets = app.getOvalTickets();
@@ -139,6 +154,135 @@ export function installApp(app) {
     if (typeof app.refreshPlayButton === "function") {
       app.refreshPlayButton();
     }
+  };
+
+  app.playCoinFlyCelebration = function playCoinFlyCelebration(pending) {
+    if (!pending || !(pending.amount > 0) || !app.moneyLabel) {
+      app.refreshMoneyLabel();
+      return;
+    }
+    const from = pending.from | 0;
+    const to = pending.to | 0;
+    const amount = pending.amount | 0;
+
+    let layer = document.getElementById("coinFlyLayer");
+    if (!layer) {
+      layer = document.createElement("div");
+      layer.id = "coinFlyLayer";
+      layer.setAttribute("aria-hidden", "true");
+      document.body.appendChild(layer);
+    }
+    layer.innerHTML = "";
+
+    const hud =
+      document.querySelector(".menu-money") || app.moneyLabel.parentElement;
+    const hudRect = hud.getBoundingClientRect();
+    const destX = hudRect.left + hudRect.width * 0.5;
+    const destY = hudRect.top + Math.min(hudRect.height * 0.55, 36);
+
+    const originX = window.innerWidth * 0.5;
+    const originY = window.innerHeight * 0.48;
+    const coinCount = Math.min(14, Math.max(6, Math.round(amount / 1.5)));
+    const flightMs = 1250;
+    const staggerMs = 55;
+
+    app._coinFlyActive = true;
+    app.moneyLabel.textContent = String(from);
+    if (hud) hud.classList.remove("coin-pulse");
+
+    for (let i = 0; i < coinCount; i++) {
+      const el = document.createElement("div");
+      el.className = "fly-coin";
+      el.innerHTML = app.getCoinIconHtml("coin-icon coin-icon--fly");
+      const sx = originX + (Math.random() - 0.5) * 100;
+      const sy = originY + (Math.random() - 0.5) * 70;
+      el.style.left = sx + "px";
+      el.style.top = sy + "px";
+      layer.appendChild(el);
+
+      const dx = destX - sx;
+      const dy = destY - sy;
+      const delay = i * staggerMs;
+      if (typeof el.animate === "function") {
+        el.animate(
+          [
+            {
+              transform: "translate(-50%, -50%) scale(0.35)",
+              opacity: 0,
+            },
+            {
+              transform: "translate(-50%, -50%) scale(1.2)",
+              opacity: 1,
+              offset: 0.12,
+            },
+            {
+              transform:
+                "translate(calc(-50% + " +
+                dx * 0.55 +
+                "px), calc(-50% + " +
+                (dy * 0.4 - 36) +
+                "px)) scale(1)",
+              opacity: 1,
+              offset: 0.45,
+            },
+            {
+              transform:
+                "translate(calc(-50% + " +
+                dx +
+                "px), calc(-50% + " +
+                dy +
+                "px)) scale(0.45)",
+              opacity: 1,
+              offset: 0.88,
+            },
+            {
+              transform:
+                "translate(calc(-50% + " +
+                dx +
+                "px), calc(-50% + " +
+                dy +
+                "px)) scale(0.15)",
+              opacity: 0,
+            },
+          ],
+          {
+            duration: flightMs,
+            delay: delay,
+            easing: "cubic-bezier(0.22, 0.7, 0.2, 1)",
+            fill: "forwards",
+          }
+        );
+      }
+    }
+
+    const countDelay = 180;
+    const countMs = flightMs + (coinCount - 1) * staggerMs * 0.65;
+    const t0 = performance.now();
+
+    function tick(now) {
+      const t = Math.min(
+        1,
+        Math.max(0, (now - t0 - countDelay) / countMs)
+      );
+      const eased = 1 - Math.pow(1 - t, 3);
+      app.moneyLabel.textContent = String(
+        Math.round(from + (to - from) * eased)
+      );
+      if (t < 1) {
+        requestAnimationFrame(tick);
+        return;
+      }
+      app._coinFlyActive = false;
+      app.refreshMoneyLabel();
+      layer.innerHTML = "";
+      if (hud) {
+        hud.classList.add("coin-pulse");
+        setTimeout(function () {
+          hud.classList.remove("coin-pulse");
+        }, 450);
+      }
+    }
+    requestAnimationFrame(tick);
   };
 
   app.getCoinRewardsForActiveTrack = function getCoinRewardsForActiveTrack() {
@@ -161,14 +305,24 @@ export function installApp(app) {
     const base = table[place] || 0;
     const multiplier = app.loadPendingCoinMultiplier();
     const gained = base * multiplier;
+    const from = app.coins;
     if (multiplier > 1) {
       app.savePendingCoinMultiplier(1);
     }
     if (gained > 0) {
       app.coins += gained;
       app.saveCoins(app.coins);
+      app.pendingCoinFly = {
+        from: from,
+        to: app.coins,
+        amount: gained,
+      };
+      // Mantém o total antigo no placar até a animação no menu
+      app.refreshMoneyLabel(from);
+    } else {
+      app.pendingCoinFly = null;
+      app.refreshMoneyLabel();
     }
-    app.refreshMoneyLabel();
     return { gained: gained, multiplier: multiplier, base: base };
   };
 

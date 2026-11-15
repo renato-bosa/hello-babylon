@@ -152,26 +152,34 @@ export function installScene(app, world) {
       app.setProgressHud(1, "100%", "Progresso");
       app.placeLabel.textContent =
         "Posição: " + world.placeText(finalPlace) + " / " + world.getFieldSize();
-      let hint = "";
+      const lines = [];
       if (didWin) {
-        hint = "Vitória! ";
+        lines.push("Vitória!");
       }
       if (reward.gained > 0) {
-        hint +=
-          "+" +
-          reward.gained +
-          " moedas" +
-          (reward.multiplier > 1 ? " (×" + reward.multiplier + ")" : "") +
-          "! ";
+        const coinIcon =
+          typeof app.getCoinIconHtml === "function"
+            ? app.getCoinIconHtml("coin-icon coin-icon--inline")
+            : "";
+        lines.push(
+          '<span class="coin-reward">' +
+            coinIcon +
+            "+" +
+            reward.gained +
+            " moedas" +
+            (reward.multiplier > 1 ? " (×" + reward.multiplier + ")" : "") +
+            "!</span>"
+        );
       } else if (!didWin) {
-        hint = "Sem moedas desta vez. ";
+        lines.push("Sem moedas desta vez.");
       }
       const touchHint =
         typeof window.isNeonRushTouchDevice === "function" &&
         window.isNeonRushTouchDevice()
           ? "Toque em ▲ para voltar ao menu"
           : "Pressione Enter ou Espaço para voltar ao menu";
-      app.rankingHint.innerHTML = hint.trim() + "<br>" + touchHint;
+      lines.push(touchHint);
+      app.rankingHint.innerHTML = lines.join("<br>");
       app.rankingHint.classList.add("show");
       // Desliza o quadro do canto para o centro
       requestAnimationFrame(function () {
