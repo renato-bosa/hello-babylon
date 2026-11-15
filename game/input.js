@@ -108,6 +108,11 @@ export function installScene(app, world) {
       app.consumeVirtualConfirm();
       return;
     }
+    if (world.accountOpen) {
+      if (app.consumeVirtualBack()) world.closeAccount();
+      app.consumeVirtualConfirm();
+      return;
+    }
     app.consumeVirtualConfirm();
     app.consumeVirtualBack();
   };

@@ -280,27 +280,31 @@ body {
   width: 86px;
 }
 
-.menu-money {
+.menu-account {
+  appearance: none;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
-  padding: 10px 8px;
+  gap: 4px;
+  padding: 10px 6px;
   border: 2px solid #ffd24a;
   border-radius: 14px;
   background: rgba(10, 4, 30, 0.82);
   box-shadow: 0 0 14px rgba(255, 210, 74, 0.25);
   color: #ffe79a;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 1px;
+  cursor: pointer;
+  font: inherit;
+  text-align: center;
+  transition: background 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
-.menu-money > span {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  opacity: 0.85;
+.menu-account:hover,
+.menu-account:focus-visible,
+#mainMenu.account-open #btnAccount {
+  background: rgba(255, 210, 74, 0.16);
+  box-shadow: 0 0 18px rgba(255, 210, 74, 0.4);
+  outline: none;
 }
 
 .menu-money-value {
@@ -327,36 +331,25 @@ body {
   filter: drop-shadow(0 0 4px rgba(255, 210, 74, 0.55));
 }
 
-.menu-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 8px;
-  border: 2px solid rgba(0, 229, 255, 0.55);
-  border-radius: 14px;
-  background: rgba(10, 4, 30, 0.82);
-  box-shadow: 0 0 14px rgba(0, 229, 255, 0.18);
-  color: #b8f3ff;
-}
-
-.menu-stat {
+.menu-account-row {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: 1px;
+  color: #b8f3ff;
 }
 
-.menu-stat span {
-  font-size: 9px;
+.menu-account-row small {
+  font-size: 8px;
   font-weight: 600;
-  letter-spacing: 1px;
-  opacity: 0.85;
+  letter-spacing: 0.8px;
+  opacity: 0.8;
 }
 
-.menu-stat strong {
-  font-size: 14px;
+.menu-account-row strong {
+  font-size: 13px;
   font-weight: 800;
-  letter-spacing: 1px;
+  letter-spacing: 0.5px;
   color: #fff;
   text-shadow: 0 0 8px rgba(0, 229, 255, 0.45);
 }
@@ -429,6 +422,19 @@ body {
 .rail-btn .icon {
   font-size: 22px;
   line-height: 1;
+}
+
+.rail-btn.race {
+  border-color: #39ff9f;
+  color: #c8ffe0;
+  text-shadow: 0 0 8px rgba(57, 255, 159, 0.55);
+}
+
+.rail-btn.race:hover:not(:disabled),
+.rail-btn.race:focus-visible:not(:disabled) {
+  background: rgba(57, 255, 159, 0.16);
+  box-shadow: 0 0 16px rgba(57, 255, 159, 0.3);
+  outline: none;
 }
 
 .rail-btn:hover:not(:disabled),
@@ -566,9 +572,94 @@ body {
 #mainMenu.shop-open .menu-play-wrap,
 #mainMenu.shop-open .menu-brand p,
 #mainMenu.missions-open .menu-play-wrap,
-#mainMenu.missions-open .menu-brand p {
+#mainMenu.missions-open .menu-brand p,
+#mainMenu.account-open .menu-play-wrap,
+#mainMenu.account-open .menu-brand p {
   opacity: 0;
   pointer-events: none;
+}
+
+#accountPanel {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background: transparent;
+}
+
+#accountPanel.show {
+  display: block;
+}
+
+.account-sheet {
+  pointer-events: auto;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: calc(14px + 86px + 8px);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom)) 16px;
+}
+
+.account-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.account-header-text h2 {
+  margin: 0;
+  font-family: "Orbitron", "Segoe UI", Tahoma, sans-serif;
+  font-size: clamp(24px, 5vw, 34px);
+  letter-spacing: 2px;
+  color: #ffd24a;
+  text-shadow: 0 0 12px rgba(255, 210, 74, 0.45);
+}
+
+.account-header-text p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #b8f3ff;
+  opacity: 0.8;
+}
+
+.account-card {
+  width: min(420px, 100%);
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 2px solid rgba(255, 210, 74, 0.55);
+  border-radius: 18px;
+  background: rgba(14, 6, 40, 0.92);
+  padding: 18px 20px;
+  box-shadow: 0 0 18px rgba(255, 210, 74, 0.18);
+}
+
+.account-detail {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  color: #b8f3ff;
+  font-size: 15px;
+  letter-spacing: 1px;
+}
+
+.account-detail strong {
+  color: #fff8d6;
+  font-size: 18px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 8px rgba(255, 210, 74, 0.35);
 }
 
 #missionsPanel {
@@ -626,22 +717,6 @@ body {
   letter-spacing: 1px;
   color: #b8f3ff;
   opacity: 0.8;
-}
-
-.missions-close {
-  appearance: none;
-  border: 1px solid #00e5ff;
-  border-radius: 10px;
-  background: rgba(0, 229, 255, 0.1);
-  color: #b8f3ff;
-  font-size: 14px;
-  letter-spacing: 1px;
-  padding: 10px 16px;
-  cursor: pointer;
-}
-
-.missions-close:hover {
-  background: rgba(0, 229, 255, 0.2);
 }
 
 .missions-carousel {
@@ -754,6 +829,7 @@ body {
 }
 
 @media (max-width: 640px) {
+  .account-sheet,
   .missions-sheet {
     left: calc(8px + 70px + 8px);
   }
@@ -1041,22 +1117,16 @@ body {
   justify-content: center;
 }
 
-.garage-close,
 .garage-equip {
   appearance: none;
-  border: 1px solid #00e5ff;
+  border: 1px solid #39ff9f;
   border-radius: 10px;
   background: transparent;
-  color: #b8f3ff;
+  color: #39ff9f;
   font-size: 12px;
   letter-spacing: 1px;
   padding: 6px 14px;
   cursor: pointer;
-}
-
-.garage-equip {
-  border-color: #39ff9f;
-  color: #39ff9f;
 }
 
 .garage-equip:disabled {
@@ -1064,9 +1134,8 @@ body {
   cursor: default;
 }
 
-.garage-close:hover,
 .garage-equip:hover:not(:disabled) {
-  background: rgba(0, 229, 255, 0.14);
+  background: rgba(57, 255, 159, 0.14);
 }
 
 @media (max-width: 640px) {
@@ -1393,7 +1462,7 @@ body {
   filter: drop-shadow(0 0 8px rgba(255, 210, 74, 0.75));
 }
 
-.menu-money.coin-pulse {
+.menu-account.coin-pulse {
   animation: coinHudPulse 0.45s ease-out;
 }
 

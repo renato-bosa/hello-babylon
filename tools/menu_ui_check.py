@@ -83,7 +83,7 @@ def run():
             must_visible(page, "#garageCarName", "Nome do carro na garagem", checks)
             page.wait_for_timeout(800)
             page.screenshot(path=str(OUT / "02-garage.png"), full_page=True)
-            page.locator("#btnGarageClose").click()
+            page.locator("#btnRace").click()
             page.wait_for_selector("#garagePanel.show", state="hidden", timeout=10000)
 
             # Loja
@@ -96,7 +96,8 @@ def run():
             checks.append(f"INFO: oferta da loja = {offer or '(vazio)'}")
             page.wait_for_timeout(800)
             page.screenshot(path=str(OUT / "03-shop.png"), full_page=True)
-            page.locator("#btnShopClose").click()
+            page.locator("#btnRace").click()
+            page.wait_for_selector("#shopPanel.show", state="hidden", timeout=10000)
 
             # Troca de pista (sem reload no Cursor; no Chromium também usa rebuild)
             before = page.locator("#trackNameLabel").inner_text().strip()

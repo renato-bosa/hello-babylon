@@ -625,6 +625,7 @@ export function installScene(app, world) {
     if (!world.inMenu || app.perfTestRunning) return;
     world.closeGarage({ restoreCar: true });
     world.closeShop({ restoreCar: true });
+    if (typeof world.closeAccount === "function") world.closeAccount();
     world.missionsOpen = true;
     document.getElementById("mainMenu").classList.add("missions-open");
     const panel = document.getElementById("missionsPanel");
@@ -683,12 +684,6 @@ export function bindMissionsControls(app, world) {
   if (btn) {
     btn.addEventListener("click", function () {
       world.openMissions();
-    });
-  }
-  const closeBtn = document.getElementById("btnMissionsClose");
-  if (closeBtn) {
-    closeBtn.addEventListener("click", function () {
-      world.closeMissions();
     });
   }
   const prevBtn = document.getElementById("btnMissionsPrev");

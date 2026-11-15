@@ -154,6 +154,9 @@ export function installApp(app) {
     if (typeof app.refreshPlayButton === "function") {
       app.refreshPlayButton();
     }
+    if (typeof app.refreshAccountPanel === "function") {
+      app.refreshAccountPanel(displayCoins);
+    }
   };
 
   app.playCoinFlyCelebration = function playCoinFlyCelebration(pending) {
@@ -175,7 +178,9 @@ export function installApp(app) {
     layer.innerHTML = "";
 
     const hud =
-      document.querySelector(".menu-money") || app.moneyLabel.parentElement;
+      document.getElementById("btnAccount") ||
+      document.querySelector(".menu-account") ||
+      app.moneyLabel.parentElement;
     const hudRect = hud.getBoundingClientRect();
     const destX = hudRect.left + hudRect.width * 0.5;
     const destY = hudRect.top + Math.min(hudRect.height * 0.55, 36);
@@ -400,14 +405,49 @@ export function installApp(app) {
   };
 
   app.refreshAccountStats = function refreshAccountStats() {
+    const carsText =
+      app.loadOwnedCars().length + "/" + app.getTotalCarsCount();
     const carsLabel = document.getElementById("carsCollectionLabel");
     const winsLabel = document.getElementById("winsLabel");
-    if (carsLabel) {
-      carsLabel.textContent =
+    if (carsLabel) carsLabel.textContent = carsText;
+    if (winsLabel) winsLabel.textContent = String(app.wins);
+    if (typeof app.refreshAccountPanel === "function") {
+      app.refreshAccountPanel();
+    }
+  };
+
+  app.refreshAccountPanel = function refreshAccountPanel(displayCoins) {
+    const coinsEl = document.getElementById("accountCoinsDetail");
+    const carsEl = document.getElementById("accountCarsDetail");
+    const winsEl = document.getElementById("accountWinsDetail");
+    const ticketsEl = document.getElementById("accountTicketsDetail");
+    const boostRow = document.getElementById("accountBoostRow");
+    const boostEl = document.getElementById("accountBoostDetail");
+    if (coinsEl) {
+      const shown = displayCoins != null ? displayCoins : app.coins;
+      coinsEl.textContent = String(shown);
+    }
+    if (carsEl) {
+      carsEl.textContent =
         app.loadOwnedCars().length + "/" + app.getTotalCarsCount();
     }
-    if (winsLabel) {
-      winsLabel.textContent = String(app.wins);
+    if (winsEl) winsEl.textContent = String(app.wins);
+    if (ticketsEl) ticketsEl.textContent = String(app.getOvalTickets());
+    if (boostRow && boostEl) {
+      const boosts = [];
+      if (app.hasPendingCoinMultiplier()) {
+        boosts.push("Moedas ×" + app.COIN_MULTIPLIER_VALUE);
+      }
+      if (app.hasPendingCalibratedTire()) {
+        boosts.push("Pneu +" + app.CALIBRATED_TIRE_BONUS_PCT + "%");
+      }
+      if (boosts.length) {
+        boostEl.textContent = boosts.join(" · ");
+        boostRow.hidden = false;
+      } else {
+        boostEl.textContent = "—";
+        boostRow.hidden = true;
+      }
     }
   };
 
@@ -470,4 +510,59 @@ export function initializeCollection(app) {
   app.WINS_STORAGE_KEY = "neonRush.wins";
   app.wins = app.loadWins();
   app.refreshAccountStats();
+}
+
+export function bindAccountControls(app, world) {
+  world.accountOpen = false;
+
+  world.closeAccount = function closeAccount() {
+    world.accountOpen = false;
+    const panel = document.getElementById("accountPanel");
+    if (panel) {
+      panel.classList.remove("show");
+      panel.setAttribute("aria-hidden", "true");
+    }
+    const menu = document.getElementById("mainMenu");
+    if (menu) menu.classList.remove("account-open");
+    if (typeof world.syncMobileControlsVisibility === "function") {
+      world.syncMobileControlsVisibility();
+    }
+  };
+
+  world.openAccount = function openAccount() {
+    if (!world.inMenu || app.perfTestRunning) return;
+    world.closeGarage({ restoreCar: true });
+    world.closeShop({ restoreCar: true });
+    if (typeof world.closeMissions === "function") world.closeMissions();
+    world.accountOpen = true;
+    document.getElementById("mainMenu").classList.add("account-open");
+    const panel = document.getElementById("accountPanel");
+    panel.classList.add("show");
+    panel.setAttribute("aria-hidden", "false");
+    app.refreshAccountPanel();
+    world.syncMobileControlsVisibility();
+  };
+
+  world.returnToRaceHub = function returnToRaceHub() {
+    if (!world.inMenu || app.perfTestRunning) return;
+    world.closeGarage({ restoreCar: true });
+    world.closeShop({ restoreCar: true });
+    if (typeof world.closeMissions === "function") world.closeMissions();
+    world.closeAccount();
+    world.syncMobileControlsVisibility();
+  };
+
+  const btnAccount = document.getElementById("btnAccount");
+  if (btnAccount) {
+    btnAccount.addEventListener("click", function () {
+      if (world.accountOpen) world.closeAccount();
+      else world.openAccount();
+    });
+  }
+  const btnRace = document.getElementById("btnRace");
+  if (btnRace) {
+    btnRace.addEventListener("click", function () {
+      world.returnToRaceHub();
+    });
+  }
 }

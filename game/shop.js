@@ -301,6 +301,7 @@ export function installScene(app, world) {
   world.openShop = function openShop() {
     if (!world.inMenu || app.perfTestRunning) return;
     if (typeof world.closeMissions === "function") world.closeMissions();
+    if (typeof world.closeAccount === "function") world.closeAccount();
     world.closeGarage({ restoreCar: false });
     world.rollShopOffers();
     world.shopOpen = true;

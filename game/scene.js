@@ -10,6 +10,7 @@ import {
   initializeMissionsScene,
   bindMissionsControls,
 } from "./missions.js";
+import { bindAccountControls } from "./profile.js";
 import { installScene as installCameras, initializeCameras } from "./cameras.js";
 import { installScene as installPostRace, initializeRaceState } from "./post-race.js";
 import { installScene as installRace, bindRaceControls } from "./race.js";
@@ -43,6 +44,7 @@ export function createScene(app) {
   initializeRaceState(app, world);
   initializeMenuInput(app, world);
   bindRaceControls(app, world);
+  bindAccountControls(app, world);
   bindMissionsControls(app, world);
   initializePerformanceDiagnostics(app, world);
   startRaceLoop(app, world);

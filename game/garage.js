@@ -34,7 +34,12 @@ export function installScene(app, world) {
       app.saveEquippedCarId(carId);
       world.garagePreviewId = null;
     }
-    if (!world.garageOpen && !world.shopOpen && !world.missionsOpen) {
+    if (
+      !world.garageOpen &&
+      !world.shopOpen &&
+      !world.missionsOpen &&
+      !world.accountOpen
+    ) {
       app.refreshEquippedCarLabel();
     }
   };
@@ -135,6 +140,7 @@ export function installScene(app, world) {
   world.openGarage = function openGarage() {
     if (!world.inMenu || app.perfTestRunning) return;
     if (typeof world.closeMissions === "function") world.closeMissions();
+    if (typeof world.closeAccount === "function") world.closeAccount();
     world.closeShop({ restoreCar: false });
     world.garagePreviewId = null;
     const ids = world.getGarageCarIds();

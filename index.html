@@ -33,8 +33,12 @@
       </div>
 
       <aside class="menu-rail hit" aria-label="Opções">
-        <div class="menu-money" title="Moedas">
-          <span>MOEDAS</span>
+        <button
+          type="button"
+          class="menu-account"
+          id="btnAccount"
+          title="Ver detalhes da conta"
+        >
           <strong class="menu-money-value">
             <svg class="coin-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
               <circle cx="12" cy="12" r="10" fill="#ffd24a" stroke="#c99212" stroke-width="2"/>
@@ -43,20 +47,27 @@
             </svg>
             <span id="moneyLabel">0</span>
           </strong>
+          <span class="menu-account-row" title="Carros desbloqueados">
+            <small>CARROS</small>
+            <strong id="carsCollectionLabel">1/1</strong>
+          </span>
+          <span class="menu-account-row" title="Vitórias em 1º lugar">
+            <small>VITÓRIAS</small>
+            <strong id="winsLabel">0</strong>
+          </span>
           <span id="ticketBadge" class="boost-badge ticket" hidden>Ticket ×0</span>
           <span id="multiplierBadge" class="boost-badge mult" hidden>×3 próxima</span>
           <span id="tireBadge" class="boost-badge tire" hidden>Pneu +25%</span>
-        </div>
-        <div class="menu-stats" aria-label="Conta">
-          <div class="menu-stat" title="Carros desbloqueados">
-            <span>CARROS</span>
-            <strong id="carsCollectionLabel">1/1</strong>
-          </div>
-          <div class="menu-stat" title="Vitórias em 1º lugar">
-            <span>VITÓRIAS</span>
-            <strong id="winsLabel">0</strong>
-          </div>
-        </div>
+        </button>
+        <button
+          type="button"
+          class="rail-btn race"
+          id="btnRace"
+          title="Voltar ao hub para escolher a pista"
+        >
+          <span class="icon">▶</span>
+          Correr
+        </button>
         <button type="button" class="rail-btn" id="btnShop" title="Comprar carros">
           <span class="icon">▣</span>
           Loja
@@ -96,7 +107,6 @@
         <p class="garage-car-index" id="garageCarIndex"></p>
         <div class="garage-actions">
           <button type="button" class="garage-equip" id="btnGarageEquip" disabled>Equipar</button>
-          <button type="button" class="garage-close" id="btnGarageClose">Fechar</button>
         </div>
       </div>
     </div>
@@ -114,7 +124,38 @@
         <p class="garage-car-index" id="shopOfferIndex"></p>
         <div class="garage-actions">
           <button type="button" class="shop-buy" id="btnShopBuy" disabled>Comprar</button>
-          <button type="button" class="garage-close" id="btnShopClose">Fechar</button>
+        </div>
+      </div>
+    </div>
+    <div id="accountPanel" aria-hidden="true">
+      <div class="account-sheet">
+        <div class="account-header">
+          <div class="account-header-text">
+            <h2>CONTA</h2>
+            <p>Moedas, coleção e progresso</p>
+          </div>
+        </div>
+        <div class="account-card">
+          <div class="account-detail">
+            <span>Moedas</span>
+            <strong id="accountCoinsDetail">0</strong>
+          </div>
+          <div class="account-detail">
+            <span>Carros</span>
+            <strong id="accountCarsDetail">1/1</strong>
+          </div>
+          <div class="account-detail">
+            <span>Vitórias</span>
+            <strong id="accountWinsDetail">0</strong>
+          </div>
+          <div class="account-detail">
+            <span>Tickets Oval</span>
+            <strong id="accountTicketsDetail">0</strong>
+          </div>
+          <div class="account-detail" id="accountBoostRow" hidden>
+            <span>Bônus ativos</span>
+            <strong id="accountBoostDetail">—</strong>
+          </div>
         </div>
       </div>
     </div>
@@ -125,9 +166,6 @@
             <h2>MISSÕES</h2>
             <p>Moedas · 1 missão pode dar ticket · reinicia em 30 min</p>
           </div>
-          <button type="button" class="missions-close" id="btnMissionsClose">
-            Fechar
-          </button>
         </div>
         <div class="missions-carousel">
           <button

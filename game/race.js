@@ -95,6 +95,7 @@ export function installScene(app, world) {
     app.refreshAccountStats();
     world.enterMenuCamera();
     if (typeof world.closeMissions === "function") world.closeMissions();
+    if (typeof world.closeAccount === "function") world.closeAccount();
     world.syncMobileControlsVisibility();
     const pendingFly = app.pendingCoinFly;
     app.pendingCoinFly = null;
@@ -197,11 +198,6 @@ export function bindRaceControls(app, world) {
       world.openGarage();
     });
   document
-    .getElementById("btnGarageClose")
-    .addEventListener("click", function () {
-      world.closeGarage();
-    });
-  document
     .getElementById("btnGaragePrev")
     .addEventListener("click", function () {
       world.stepGarage(-1);
@@ -220,11 +216,6 @@ export function bindRaceControls(app, world) {
     .getElementById("btnShop")
     .addEventListener("click", function () {
       world.openShop();
-    });
-  document
-    .getElementById("btnShopClose")
-    .addEventListener("click", function () {
-      world.closeShop();
     });
   document
     .getElementById("btnShopPrev")
@@ -281,6 +272,13 @@ export function bindRaceControls(app, world) {
       } else if (e.code === "ArrowRight" || e.code === "KeyD") {
         e.preventDefault();
         app.stepMissionsCarousel(1);
+      }
+      return;
+    }
+    if (world.accountOpen) {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        world.closeAccount();
       }
       return;
     }
