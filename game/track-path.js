@@ -61,9 +61,19 @@ export function installApp(app) {
         ? Math.floor(feats.laps)
         : 1;
 
+    // O oval usa a mesma volta fechada no cenário e na colisão. Os trechos
+    // auxiliares do spline original não são ramais dirigíveis desse circuito.
+    let closedPath3D = null;
+    if (feats.ovalArena) {
+      const loopPoints = path3D.slice(startDist / path3D.length(), finishDist / path3D.length()).getCurve();
+      loopPoints.push(loopPoints[0].clone());
+      closedPath3D = new BABYLON.Path3D(loopPoints, new BABYLON.Vector3(0, 1, 0));
+    }
+
     return {
       data: trackData,
       path3D: path3D,
+      closedPath3D,
       trackLength: path3D.length(),
       startDist: startDist,
       finishDist: finishDist,
@@ -136,6 +146,8 @@ export function installApp(app) {
   };
 
   app.raceProgressFromLaps = function raceProgressFromLaps(racer, track) {
+    // Cruzamentos da emenda na contramão precisam ser recuperados antes de
+    // avançar o progresso; voltar à chegada não equivale a completar uma volta.
     const local = Math.max(
       0,
       Math.min(
@@ -145,7 +157,7 @@ export function installApp(app) {
     );
     return Math.max(
       0,
-      Math.min(1, (racer.lapsCompleted + local) / track.totalLaps)
+      Math.min(1, (racer.lapsCompleted - (racer.lapBacktracks || 0) + local) / track.totalLaps)
     );
   };
 

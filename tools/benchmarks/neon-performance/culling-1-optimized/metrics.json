@@ -1,0 +1,73 @@
+{
+  "phase": "after",
+  "date": "2026-11-14T23:47:49.706Z",
+  "browser": "157.0.8103.52",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "deviceScaleFactor": 1,
+  "renderer": "ANGLE / SwiftShader (software)",
+  "seed": 123456789,
+  "source": "workspace",
+  "warmupMs": 6000,
+  "sampleMs": 4000,
+  "repeats": 3,
+  "scenario": "Câmera de corrida estática; simulação e animações do menu pausadas. Renderização e animações dos modelos permanecem ativas.",
+  "babylonSha256": "51c60a563c10dedd56fd3fe9f903107154ea1fbac309bc0f499491327d124549",
+  "results": [
+    {
+      "id": "neon-circuit-1",
+      "fraction": 0.38,
+      "babylonVersion": "9.35.0",
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "meshes": 325,
+      "materials": 188,
+      "roadMeshes": 18,
+      "roadVertices": 12630,
+      "roadTriangles": 10752,
+      "raceLength": 769.3762015834855,
+      "laps": 1,
+      "camera": [
+        18.54793337833756,
+        10,
+        270.66484032068996
+      ],
+      "runs": [
+        {
+          "frames": 92,
+          "fps": 23.083557404564754,
+          "frameMsP50": 43.39999997615814,
+          "frameMsP95": 47.80000001192093,
+          "cpuMsP50": 2.899999976158142,
+          "cpuMsP95": 4.199999988079071,
+          "drawCalls": 82,
+          "activeMeshes": 82,
+          "activeTriangles": 6744
+        },
+        {
+          "frames": 99,
+          "fps": 24.68513853904282,
+          "frameMsP50": 39.80000001192093,
+          "frameMsP95": 46.09999996423721,
+          "cpuMsP50": 2.199999988079071,
+          "cpuMsP95": 3.600000023841858,
+          "drawCalls": 82,
+          "activeMeshes": 82,
+          "activeTriangles": 6744
+        },
+        {
+          "frames": 98,
+          "fps": 24.53273982664835,
+          "frameMsP50": 40.69999998807907,
+          "frameMsP95": 44.10000002384186,
+          "cpuMsP50": 2.5,
+          "cpuMsP95": 3.899999976158142,
+          "drawCalls": 82,
+          "activeMeshes": 82,
+          "activeTriangles": 6744
+        }
+      ]
+    }
+  ]
+}

@@ -10,10 +10,10 @@ const phase = process.argv[2];
 const smoke = process.argv.includes('--smoke');
 const captureOnly = process.argv.includes('--capture');
 const selectedTrack = process.argv.find(arg => arg.startsWith('--track='))?.slice(8);
-if (selectedTrack && !captureOnly) throw Error('--track é reservado para capturas; as métricas cobrem todas as pistas');
+if (selectedTrack && !captureOnly && !process.env.BENCH_OUTPUT) throw Error('Use BENCH_OUTPUT para não sobrescrever a referência completa');
 if (!['before', 'after'].includes(phase)) throw new Error('Informe before ou after');
 const base = path.join(__dirname, 'benchmarks/continuous-road');
-const output = path.join(base, phase);
+const output = process.env.BENCH_OUTPUT ? path.resolve(process.env.BENCH_OUTPUT) : path.join(base, phase);
 fs.mkdirSync(output, { recursive: true });
 const hook = `
   window.__roadBenchmark = { app, world };
@@ -26,6 +26,9 @@ const server = http.createServer((request, response) => {
   }
   if (phase === 'before' && ['/game/geometry.js', '/game/world.js'].includes(pathname)) {
     file = path.join(base, 'before/source', path.basename(file));
+  }
+  if (process.env.BENCH_SOURCE && ['/game/geometry.js', '/game/world.js'].includes(pathname)) {
+    file = path.join(path.resolve(process.env.BENCH_SOURCE), path.basename(file));
   }
   let data = fs.readFileSync(file);
   if (pathname === '/game/world.js') {
@@ -52,13 +55,14 @@ let browser;
   browser = await chromium.launch({
     headless: true,
     executablePath: process.env.BROWSER_PATH || undefined,
-    args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
+    args: process.env.BENCH_RENDERER === 'default' ? [] : ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'],
   });
   const report = {
     phase, date: new Date().toISOString(), browser: browser.version(),
     viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1,
-    renderer: 'ANGLE / SwiftShader (software)', seed: 123456789,
-    warmupMs: 4000, sampleMs: 4000, repeats: 3,
+    renderer: process.env.BENCH_RENDERER === 'default' ? 'Padrão do navegador; renderer efetivo em results[].gpu' : 'ANGLE / SwiftShader (software)', seed: 123456789,
+    source: process.env.BENCH_SOURCE || (phase === 'before' ? 'legacy snapshot' : 'workspace'),
+    warmupMs: Number(process.env.BENCH_WARMUP_MS || 4000), sampleMs: 4000, repeats: 3,
     scenario: 'Câmera de corrida estática; simulação e animações do menu pausadas. Renderização e animações dos modelos permanecem ativas.',
     babylonSha256: process.env.BABYLON_SOURCE ? crypto.createHash('sha256').update(fs.readFileSync(process.env.BABYLON_SOURCE)).digest('hex') : null,
     results: [],
@@ -104,6 +108,8 @@ let browser;
           start, cpuMs: performance.now() - start,
           drawCalls: app.engine._drawCalls.current - previousDrawCalls,
           activeMeshes: world.scene.getActiveMeshes().length,
+          activeTriangles: world.scene.getActiveMeshes().data.slice(0, world.scene.getActiveMeshes().length)
+            .reduce((sum, mesh) => sum + mesh.getTotalIndices() / 3, 0),
         });
       };
     }, fraction);
@@ -130,7 +136,7 @@ let browser;
       });
       if (errors.length) throw Error(errors.join('\n'));
       report.results.push({id, checks});
-      fs.writeFileSync(path.join(base, 'smoke.json'), JSON.stringify(report, null, 2));
+      fs.writeFileSync(path.join(process.env.BENCH_OUTPUT ? output : base, 'smoke.json'), JSON.stringify(report, null, 2));
       console.log(JSON.stringify({id, checks}));
       await context.close();
       continue;
@@ -151,6 +157,7 @@ let browser;
           frameMsP50: percentile(intervals,.5), frameMsP95: percentile(intervals,.95),
           cpuMsP50: percentile(rows.map(r=>r.cpuMs),.5), cpuMsP95: percentile(rows.map(r=>r.cpuMs),.95),
           drawCalls: mean(rows.map(r=>r.drawCalls)), activeMeshes: mean(rows.map(r=>r.activeMeshes)),
+          activeTriangles: mean(rows.map(r=>r.activeTriangles)),
         };
       }));
     }

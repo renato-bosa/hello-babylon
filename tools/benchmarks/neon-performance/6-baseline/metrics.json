@@ -1,0 +1,73 @@
+{
+  "phase": "after",
+  "date": "2026-11-14T23:46:26.440Z",
+  "browser": "157.0.8103.52",
+  "viewport": {
+    "width": 1280,
+    "height": 720
+  },
+  "deviceScaleFactor": 1,
+  "renderer": "ANGLE / SwiftShader (software)",
+  "seed": 123456789,
+  "source": "C:\\Github\\hello-babylon\\tools\\benchmarks\\neon-performance\\baseline-source",
+  "warmupMs": 6000,
+  "sampleMs": 4000,
+  "repeats": 3,
+  "scenario": "Câmera de corrida estática; simulação e animações do menu pausadas. Renderização e animações dos modelos permanecem ativas.",
+  "babylonSha256": "51c60a563c10dedd56fd3fe9f903107154ea1fbac309bc0f499491327d124549",
+  "results": [
+    {
+      "id": "neon-circuit-1",
+      "fraction": 0.38,
+      "babylonVersion": "9.35.0",
+      "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "meshes": 334,
+      "materials": 188,
+      "roadMeshes": 27,
+      "roadVertices": 12630,
+      "roadTriangles": 10752,
+      "raceLength": 769.3762015834855,
+      "laps": 1,
+      "camera": [
+        18.54793337833756,
+        10,
+        270.66484032068996
+      ],
+      "runs": [
+        {
+          "frames": 110,
+          "fps": 27.340222734943833,
+          "frameMsP50": 36.10000002384186,
+          "frameMsP95": 41.19999998807907,
+          "cpuMsP50": 1.600000023841858,
+          "cpuMsP95": 3.199999988079071,
+          "drawCalls": 86,
+          "activeMeshes": 86,
+          "activeTriangles": 6744
+        },
+        {
+          "frames": 112,
+          "fps": 27.935069837674593,
+          "frameMsP50": 35.200000047683716,
+          "frameMsP95": 41.60000002384186,
+          "cpuMsP50": 1.5,
+          "cpuMsP95": 3.200000047683716,
+          "drawCalls": 86,
+          "activeMeshes": 86,
+          "activeTriangles": 6744
+        },
+        {
+          "frames": 106,
+          "fps": 26.40911491753556,
+          "frameMsP50": 37.80000001192093,
+          "frameMsP95": 41.19999998807907,
+          "cpuMsP50": 1.600000023841858,
+          "cpuMsP95": 3.199999988079071,
+          "drawCalls": 86,
+          "activeMeshes": 86,
+          "activeTriangles": 6744
+        }
+      ]
+    }
+  ]
+}

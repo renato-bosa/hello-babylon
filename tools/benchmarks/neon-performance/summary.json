@@ -1,0 +1,162 @@
+[
+  {
+    "stage": "software",
+    "variant": "legacy",
+    "passes": [
+      "0-legacy",
+      "5-legacy"
+    ],
+    "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "meshes": 572,
+    "triangles": 5434,
+    "samples": 6,
+    "fps": 30.381310124605285,
+    "fpsMin": 29.044292546306234,
+    "fpsMax": 38.69969040259196,
+    "cpuMs": 2.9000000059604645,
+    "drawCalls": 123,
+    "activeTriangles": 2362
+  },
+  {
+    "stage": "software",
+    "variant": "baseline",
+    "passes": [
+      "1-baseline",
+      "4-baseline",
+      "6-baseline"
+    ],
+    "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "meshes": 27,
+    "triangles": 10752,
+    "samples": 9,
+    "fps": 27.935069837674593,
+    "fpsMin": 26.40911491753556,
+    "fpsMax": 29.198550140870903,
+    "cpuMs": 1.5,
+    "drawCalls": 86,
+    "activeTriangles": 6744
+  },
+  {
+    "stage": "software",
+    "variant": "optimized",
+    "passes": [
+      "2-optimized",
+      "3-optimized",
+      "7-optimized"
+    ],
+    "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "meshes": 18,
+    "triangles": 10752,
+    "samples": 9,
+    "fps": 27.297771099423993,
+    "fpsMin": 23.38288864815429,
+    "fpsMax": 28.681409917815664,
+    "cpuMs": 1.5,
+    "drawCalls": 82,
+    "activeTriangles": 6744
+  },
+  {
+    "stage": "culling",
+    "variant": "candidate",
+    "passes": [
+      "culling-0-candidate",
+      "culling-3-candidate"
+    ],
+    "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "meshes": 72,
+    "triangles": 10752,
+    "samples": 6,
+    "fps": 24.794594721053024,
+    "fpsMin": 23.083678333960606,
+    "fpsMax": 29.364858365541913,
+    "cpuMs": 2.6500000059604645,
+    "drawCalls": 86,
+    "activeTriangles": 3744
+  },
+  {
+    "stage": "culling",
+    "variant": "optimized",
+    "passes": [
+      "culling-1-optimized",
+      "culling-2-optimized"
+    ],
+    "gpu": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+    "meshes": 18,
+    "triangles": 10752,
+    "samples": 6,
+    "fps": 24.546405360849178,
+    "fpsMin": 23.083557404564754,
+    "fpsMax": 25.43311845293694,
+    "cpuMs": 2.699999988079071,
+    "drawCalls": 82,
+    "activeTriangles": 6744
+  },
+  {
+    "stage": "default",
+    "variant": "baseline",
+    "passes": [
+      "default-0-baseline"
+    ],
+    "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x000046B3) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "meshes": 27,
+    "triangles": 10752,
+    "samples": 3,
+    "fps": 60.001500036964465,
+    "fpsMin": 59.9955003372959,
+    "fpsMax": 60.01104805869765,
+    "cpuMs": 3,
+    "drawCalls": 86,
+    "activeTriangles": 6744
+  },
+  {
+    "stage": "default",
+    "variant": "optimized",
+    "passes": [
+      "default-1-optimized"
+    ],
+    "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x000046B3) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "meshes": 18,
+    "triangles": 10752,
+    "samples": 3,
+    "fps": 59.9955003372959,
+    "fpsMin": 59.988002400235075,
+    "fpsMax": 60.00900135056027,
+    "cpuMs": 2.800000011920929,
+    "drawCalls": 82,
+    "activeTriangles": 6744
+  },
+  {
+    "stage": "default",
+    "variant": "candidate",
+    "passes": [
+      "default-2-candidate"
+    ],
+    "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x000046B3) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "meshes": 72,
+    "triangles": 10752,
+    "samples": 3,
+    "fps": 59.99250093738283,
+    "fpsMin": 59.98800239934135,
+    "fpsMax": 59.997000150171296,
+    "cpuMs": 3.199999988079071,
+    "drawCalls": 86,
+    "activeTriangles": 3744
+  },
+  {
+    "stage": "default",
+    "variant": "legacy",
+    "passes": [
+      "default-3-legacy"
+    ],
+    "gpu": "ANGLE (Intel, Intel(R) UHD Graphics (0x000046B3) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "meshes": 572,
+    "triangles": 5434,
+    "samples": 3,
+    "fps": 60.00300014982867,
+    "fpsMin": 59.99100134944001,
+    "fpsMax": 60.0075009376172,
+    "cpuMs": 5.5,
+    "drawCalls": 123,
+    "activeTriangles": 2362
+  }
+]

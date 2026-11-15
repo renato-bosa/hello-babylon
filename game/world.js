@@ -48,16 +48,7 @@ export function installScene(app, world) {
     const features = world.track.data.features || {};
     const isBeach = !!features.beach;
     const step = 7;
-    let worldPath = world.path3D;
-    if (features.ovalArena) {
-      // Só o cenário fecha uma volta; o percurso da corrida fica intacto.
-      // Evita duplicar a pré-largada sobre a saída da última curva do oval.
-      const loopPoints = world.path3D
-        .slice(world.track.startDist / world.trackLength, world.track.finishDist / world.trackLength)
-        .getCurve();
-      loopPoints.push(loopPoints[0].clone());
-      worldPath = new BABYLON.Path3D(loopPoints, new BABYLON.Vector3(0, 1, 0));
-    }
+    const worldPath = world.track.closedPath3D || world.path3D;
     const worldLength = worldPath.length();
     const worldPieceCount = Math.ceil(worldLength / step);
     // Distribui marcações e cenário pela volta inteira.

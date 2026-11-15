@@ -1,0 +1,14 @@
+[
+  {
+    "renderer": "software",
+    "channels": 3686400,
+    "changed": 0,
+    "maxDifference": 0
+  },
+  {
+    "renderer": "Intel UHD D3D11",
+    "channels": 3686400,
+    "changed": 0,
+    "maxDifference": 0
+  }
+]

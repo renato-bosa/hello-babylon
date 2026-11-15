@@ -51,6 +51,9 @@ export function installApp(app) {
       vertices.applyToMesh(result);
       result.material = material;
       result.parent = parent;
+      // O cenário só muda ao reconstruir a pista; evita recalcular estas
+      // matrizes em cada quadro sem congelar materiais ou a lista visível.
+      result.freezeWorldMatrix();
       return result;
     };
     const dashBox = BABYLON.VertexData.CreateBox({ width: 0.2, height: 0.05, depth: 3 });
@@ -78,8 +81,9 @@ export function installApp(app) {
         strip(edges, sections, right, 0.2, right, 0);
         strip(edges, sections, right, 0, left, 0);
       }
-      mesh("roadEdges_" + id, edges, edgeMat, group);
-      const dashes = buffer();
+      // Bordas e marcações usam o mesmo material e o mesmo trecho espacial.
+      // Compartilhar o mesh elimina uma chamada de desenho por trecho.
+      const dashes = edges;
       while (dashIndex * dashStep < Math.min(to, length)) {
         const sample = app.samplePath(path, dashIndex++ * dashStep);
         const rotation = BABYLON.Quaternion.RotationYawPitchRoll(
@@ -95,7 +99,7 @@ export function installApp(app) {
         }
         dashes.indices.push(...dashBox.indices.map(i => i + offset));
       }
-      if (dashes.indices.length) mesh("roadDashes_" + id, dashes, edgeMat, group);
+      mesh("roadEdges_" + id, edges, edgeMat, group);
       groups.push(group);
     }
     return groups;

@@ -11,6 +11,13 @@ export function installScene(app, world) {
     racer.speed = 0;
     racer.distAlong = app.distanceAlongPath(world.path3D, racer.mesh.position);
     racer.lapsCompleted = 0;
+    racer.lapBacktracks = 0;
+    racer.closedPathDistance = world.track.closedPath3D
+      ? app.distanceAlongPath(world.track.closedPath3D, racer.mesh.position)
+      : null;
+    if (racer.closedPathDistance != null) {
+      racer.distAlong = world.track.startDist + Math.min(racer.closedPathDistance, world.track.lapLength);
+    }
     racer.lapArmed = false;
     racer.pathHint = racer.distAlong;
     racer.progress =
@@ -52,6 +59,9 @@ export function installScene(app, world) {
     racer.mesh.rotation.x = app.pitchFromTangent(sample.tangent);
     racer.distAlong = world.track.startDist + 3;
     racer.pathHint = world.track.startDist + 3;
+    if (world.track.closedPath3D) {
+      racer.closedPathDistance = app.distanceAlongPath(world.track.closedPath3D, racer.mesh.position);
+    }
     racer.lapArmed = false;
     racer.prevFinishSide = 1;
   };

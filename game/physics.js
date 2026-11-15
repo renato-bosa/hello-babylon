@@ -119,7 +119,32 @@ export function installScene(app, world) {
     );
     racer.mesh.position.addInPlace(forward.scale(racer.speed * dt));
 
-    if (world.track.totalLaps > 1) {
+    let sampleOnPath;
+    let movingForwardOnLoop = true;
+    let crossedLoopForward = false;
+    if (world.track.closedPath3D) {
+      const loop = world.track.closedPath3D;
+      const loopLength = loop.length();
+      const distance = app.distanceAlongPath(loop, racer.mesh.position);
+      const previous = racer.closedPathDistance == null ? distance : racer.closedPathDistance;
+      let delta = distance - previous;
+      racer.lapBacktracks = racer.lapBacktracks || 0;
+      if (delta > loopLength / 2) {
+        // Cruzou a emenda de trás para a frente do array, na contramão.
+        delta -= loopLength;
+        racer.lapBacktracks += 1;
+        racer.lapArmed = false;
+      } else if (delta < -loopLength / 2) {
+        delta += loopLength;
+        crossedLoopForward = true;
+        if (racer.lapBacktracks > 0) racer.lapBacktracks -= 1;
+      }
+      movingForwardOnLoop = delta > 0;
+      racer.closedPathDistance = distance;
+      racer.distAlong = world.track.startDist + Math.min(distance, world.track.lapLength);
+      racer.pathHint = racer.distAlong;
+      sampleOnPath = app.samplePath(loop, distance);
+    } else if (world.track.totalLaps > 1) {
       if (racer.pathHint == null) racer.pathHint = world.track.startDist;
       racer.distAlong = app.distanceAlongPathHinted(
         world.path3D,
@@ -133,7 +158,7 @@ export function installScene(app, world) {
       racer.distAlong = app.distanceAlongPath(world.path3D, racer.mesh.position);
     }
 
-    const sampleOnPath = app.samplePath(world.path3D, racer.distAlong);
+    sampleOnPath = sampleOnPath || app.samplePath(world.path3D, racer.distAlong);
     const closest = sampleOnPath.position;
     const tan = sampleOnPath.tangent;
     const side = sampleOnPath.binormal;
@@ -227,6 +252,8 @@ export function installScene(app, world) {
     if (world.track.totalLaps > 1) {
       if (
         !racer.lapArmed &&
+        !racer.lapBacktracks &&
+        movingForwardOnLoop &&
         racer.distAlong > world.track.startDist + world.track.lapLength * 0.4
       ) {
         racer.lapArmed = true;
@@ -234,7 +261,9 @@ export function installScene(app, world) {
       if (
         !racer.finished &&
         racer.lapArmed &&
-        (crossedPlane || pastFinishDist)
+        !racer.lapBacktracks &&
+        movingForwardOnLoop &&
+        (crossedPlane || pastFinishDist || crossedLoopForward)
       ) {
         racer.lapsCompleted += 1;
         racer.lapArmed = false;
