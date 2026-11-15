@@ -1172,6 +1172,95 @@ body {
 /* Celular em paisagem: os títulos dos painéis começam abaixo do logotipo.
    A reserva acompanha o tamanho da marca sem alterar retrato ou desktop. */
 @media (orientation: landscape) and (max-height: 500px) and (max-width: 1024px) and (pointer: coarse) {
+  #garagePanel,
+  #shopPanel {
+    --landscape-nav-left: 114px;
+    --landscape-nav-right: max(16px, 4vw);
+  }
+
+  @media (max-width: 640px) {
+    #garagePanel,
+    #shopPanel {
+      --landscape-nav-left: 88px;
+      --landscape-nav-right: 8px;
+    }
+  }
+
+  /* O painel inferior encolhe dentro do espaço livre entre as duas setas. */
+  .garage-footer {
+    box-sizing: border-box;
+    left: calc(var(--landscape-nav-left) + 44px + 8px);
+    right: calc(var(--landscape-nav-right) + 44px + 8px);
+    top: auto;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    transform: none;
+    width: auto;
+    max-width: 420px;
+    margin-inline: auto;
+    max-height: calc(100dvh - 100px);
+    gap: 6px;
+    padding: 8px;
+    overflow-y: auto;
+    touch-action: pan-y;
+    overscroll-behavior-y: contain;
+  }
+
+  .garage-footer > * {
+    flex-shrink: 0;
+  }
+
+  #shopPanel .garage-footer {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: 12px;
+  }
+
+  #shopPanel .garage-footer > * {
+    grid-column: 1;
+    min-width: 0;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  #shopPanel .garage-footer > .garage-actions {
+    grid-column: 2;
+    grid-row: 1 / span 5;
+    align-self: center;
+    width: auto;
+  }
+
+  .garage-footer-top {
+    gap: 6px;
+    text-align: center;
+  }
+
+  .garage-car-name {
+    font-size: 16px;
+    line-height: 1.2;
+    letter-spacing: 1px;
+  }
+
+  .garage-nav {
+    top: 50%;
+    bottom: auto;
+    transform: translateY(-50%);
+    width: 44px;
+    height: 44px;
+  }
+
+  .garage-nav.prev {
+    left: var(--landscape-nav-left);
+  }
+
+  .garage-nav.next {
+    right: var(--landscape-nav-right);
+  }
+
+  .garage-equip,
+  .shop-buy {
+    min-height: 44px;
+  }
+
   .menu-rail {
     gap: 4px;
     max-height: calc(100dvh - max(8px, env(safe-area-inset-top)) - max(8px, env(safe-area-inset-bottom)));
