@@ -118,8 +118,30 @@ let browser;
         const {app, world} = window.__roadBenchmark;
         const check = (condition, message) => { if (!condition) throw Error(message); };
         app.engine.stopRenderLoop();
+        const ticketCost = app.getTrackTicketCost();
+        const ticketChecks = {};
+        if (ticketCost > 0) {
+          app.saveOvalTickets(0);
+          const coinsBefore = app.coins;
+          const alert = window.alert;
+          const alerts = [];
+          window.alert = message => alerts.push(message);
+          try { world.startRaceFromMenu(); } finally { window.alert = alert; }
+          check(alerts.length === 1, 'Bloqueio sem ticket não foi informado');
+          check(world.inMenu && !world.countdownActive, 'Oval iniciou sem ticket');
+          check(app.getOvalTickets() === 0 && app.coins === coinsBefore, 'Bloqueio alterou o saldo');
+          app.addOvalTickets(ticketCost + 1);
+          ticketChecks.blockedWithoutTicket = true;
+        } else {
+          app.saveOvalTickets(2);
+        }
+        const ticketsBefore = app.getOvalTickets();
         world.startRaceFromMenu();
         check(!world.inMenu && world.countdownActive, 'Largada não iniciou');
+        check(app.getOvalTickets() === ticketsBefore - ticketCost, 'Consumo incorreto de tickets');
+        check(Number(localStorage.getItem(app.OVAL_TICKETS_KEY)) === ticketsBefore - ticketCost, 'Consumo não persistido');
+        ticketChecks.exactTicketConsumption = true;
+        if (!ticketCost) ticketChecks.freeTrackPreservesTickets = true;
         world.countdownActive = false;
         const initial = world.player.mesh.position.clone();
         for (let i = 0; i < 60; i++) world.applyDrive(world.player, {up:true}, 1/60);
@@ -132,7 +154,19 @@ let browser;
         check(oldMeshes.every(m => m.isDisposed()), 'Meshes antigos permaneceram na cena');
         check(world.roadPieces.every(g => g.getChildMeshes().every(m => m.material && world.scene.materials.includes(m.material))), 'Material descartado na troca');
         world.scene.render();
-        return { start:true, drive:true, playerFinishGuard:true, trackSwitch:true, disposal:true };
+        if (world.track.data.id === 'neon-circuit-1') {
+          const epics = Object.values(window.NEON_RUSH_CARS).filter(car => car.rarity === 'epic').map(car => car.id);
+          app.savePurchasedCars(epics);
+          app.saveMissionState({epicBaseline:epics.length,ticketMissionId:'buy-epic-2'});
+          // Exercita a criação e a atualização do cartão, em contexto isolado.
+          for (let i = 0; i < 2; i++) {
+            app.refreshMissionsPanel();
+            const action = document.querySelector('[data-mission-id="buy-epic-2"] .mission-claim');
+            check(action && action.disabled && action.textContent === 'Encerrada', 'Missão esgotada não foi encerrada na interface');
+          }
+          ticketChecks.retiredMissionUI = true;
+        }
+        return { start:true, drive:true, playerFinishGuard:true, trackSwitch:true, disposal:true, ...ticketChecks };
       });
       if (errors.length) throw Error(errors.join('\n'));
       report.results.push({id, checks});

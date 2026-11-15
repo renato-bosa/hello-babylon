@@ -121,7 +121,8 @@ export function installScene(app, world) {
       const turnNorm = Math.min(1, Math.max(0, steerPower));
       const lossRate =
         app.PHYSICS.cornerDrag * turnNorm * Math.abs(racer.speed);
-      racer.speed -= Math.sign(racer.speed) * lossRate * dt;
+      // Preserva a perda normal, mas uma pausa longa só pode frear até zero.
+      racer.speed -= Math.sign(racer.speed) * Math.min(Math.abs(racer.speed), lossRate * dt);
       if (Math.abs(racer.speed) < 0.2) racer.speed = 0;
     }
 

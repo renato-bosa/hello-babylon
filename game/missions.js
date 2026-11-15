@@ -63,9 +63,11 @@ export function installApp(app) {
   };
 
   app.pickRandomTicketMissionId = function pickRandomTicketMissionId(
-    preferExcludeId
+    preferExcludeId, state
   ) {
-    const ids = app.MISSION_DEFS.map(function (m) {
+    const ids = app.MISSION_DEFS.filter(function (m) {
+      return !app.isMissionUnavailable(m.id, state || app.loadMissionState());
+    }).map(function (m) {
       return m.id;
     });
     let pool = ids;
@@ -79,10 +81,10 @@ export function installApp(app) {
 
   app.ensureTicketMissionVariant = function ensureTicketMissionVariant(state) {
     const valid = app.MISSION_DEFS.some(function (m) {
-      return m.id === state.ticketMissionId;
+      return m.id === state.ticketMissionId && !app.isMissionUnavailable(m.id, state);
     });
     if (!valid) {
-      state.ticketMissionId = app.pickRandomTicketMissionId(null);
+      state.ticketMissionId = app.pickRandomTicketMissionId(null, state);
       return true;
     }
     return false;
@@ -113,7 +115,7 @@ export function installApp(app) {
     }
     // Se a variante de ticket era esta, sorteia outra (ou a mesma) de novo
     if (state.ticketMissionId === missionId) {
-      state.ticketMissionId = app.pickRandomTicketMissionId(null);
+      state.ticketMissionId = app.pickRandomTicketMissionId(null, state);
     }
   };
 
@@ -131,6 +133,7 @@ export function installApp(app) {
         changed = true;
       }
     });
+    if (app.ensureTicketMissionVariant(state)) changed = true;
     if (changed) app.saveMissionState(state);
     return state;
   };
@@ -155,6 +158,22 @@ export function installApp(app) {
       const def = app.getCarDef(id);
       return def && def.rarity === "epic";
     }).length;
+  };
+
+  app.isMissionUnavailable = function isMissionUnavailable(missionId, state) {
+    if (missionId !== "buy-epic-2" || (state.claimed && state.claimed[missionId])) return false;
+    const progress = Math.max(0, app.countPurchasedEpicCars() - (state.epicBaseline || 0));
+    // Mantém o resgate de ciclos já concluídos, inclusive em saves antigos.
+    if (progress >= 2) return false;
+    const owned = app.loadOwnedCars();
+    const remaining = Object.values(window.NEON_RUSH_CARS || {}).filter(function (car) {
+      return car.rarity === "epic" && owned.indexOf(car.id) === -1;
+    }).length;
+    return progress + remaining < 2;
+  };
+
+  app.isMissionRetired = function isMissionRetired(missionId) {
+    return app.isMissionUnavailable(missionId, app.reconcileMissionResets());
   };
 
   app.getMissionProgress = function getMissionProgress(missionId) {
@@ -209,7 +228,7 @@ export function installApp(app) {
     state.progress = state.progress || {};
     state.claimed = state.claimed || {};
 
-    if (!(state.claimed["first-streak-5"])) {
+    if (!(state.claimed["first-streak-5"]) && (state.firstStreak || 0) < 5) {
       if (place === 1) {
         state.firstStreak = (state.firstStreak || 0) + 1;
       } else {
@@ -355,6 +374,7 @@ export function installApp(app) {
   app.buildMissionCard = function buildMissionCard(mission) {
     const progress = app.getMissionProgress(mission.id);
     const claimed = app.isMissionClaimed(mission.id);
+    const retired = app.isMissionRetired(mission.id);
     const cooldownMs = claimed ? app.getMissionCooldownMs(mission.id) : 0;
     const done = progress >= mission.target;
     const ticketReward = app.isMissionTicketReward(mission.id);
@@ -366,7 +386,7 @@ export function installApp(app) {
     const row = document.createElement("div");
     row.className =
       "mission-card" +
-      (claimed ? " claimed" : "") +
+      (claimed || retired ? " claimed" : "") +
       (done && !claimed ? " ready" : "") +
       (ticketReward ? " ticket-reward" : "");
 
@@ -379,7 +399,7 @@ export function installApp(app) {
 
     const reward = document.createElement("span");
     reward.className = "mission-reward" + (ticketReward ? " ticket" : "");
-    reward.textContent = app.getMissionRewardLabel(mission);
+    reward.textContent = retired ? "Encerrada" : app.getMissionRewardLabel(mission);
 
     head.appendChild(title);
     head.appendChild(reward);
@@ -393,7 +413,9 @@ export function installApp(app) {
 
     const prog = document.createElement("span");
     prog.className = "mission-progress";
-    if (claimed && cooldownMs > 0) {
+    if (retired) {
+      prog.textContent = "Sem novos épicos suficientes";
+    } else if (claimed && cooldownMs > 0) {
       prog.textContent = "Volta em " + app.formatMissionCooldown(cooldownMs);
     } else {
       prog.textContent =
@@ -403,7 +425,10 @@ export function installApp(app) {
     const action = document.createElement("button");
     action.type = "button";
     action.className = "mission-claim";
-    if (claimed) {
+    if (retired) {
+      action.textContent = "Encerrada";
+      action.disabled = true;
+    } else if (claimed) {
       action.textContent = "Aguardando";
       action.disabled = true;
     } else if (done) {
@@ -431,6 +456,7 @@ export function installApp(app) {
   ) {
     const progress = app.getMissionProgress(mission.id);
     const claimed = app.isMissionClaimed(mission.id);
+    const retired = app.isMissionRetired(mission.id);
     const cooldownMs = claimed ? app.getMissionCooldownMs(mission.id) : 0;
     const done = progress >= mission.target;
     const ticketReward = app.isMissionTicketReward(mission.id);
@@ -439,19 +465,21 @@ export function installApp(app) {
 
     card.className =
       "mission-card" +
-      (claimed ? " claimed" : "") +
+      (claimed || retired ? " claimed" : "") +
       (done && !claimed ? " ready" : "") +
       (ticketReward ? " ticket-reward" : "");
 
     const reward = card.querySelector(".mission-reward");
     if (reward) {
       reward.className = "mission-reward" + (ticketReward ? " ticket" : "");
-      reward.textContent = app.getMissionRewardLabel(mission);
+      reward.textContent = retired ? "Encerrada" : app.getMissionRewardLabel(mission);
     }
 
     const prog = card.querySelector(".mission-progress");
     if (prog) {
-      if (claimed && cooldownMs > 0) {
+      if (retired) {
+        prog.textContent = "Sem novos épicos suficientes";
+      } else if (claimed && cooldownMs > 0) {
         prog.textContent = "Volta em " + app.formatMissionCooldown(cooldownMs);
       } else {
         prog.textContent =
@@ -461,12 +489,14 @@ export function installApp(app) {
 
     const action = card.querySelector(".mission-claim");
     if (action) {
-      const nextLabel = claimed
-        ? "Aguardando"
-        : done
-          ? "Receber"
-          : "Em andamento";
-      const shouldEnable = !claimed && done;
+      const nextLabel = retired
+        ? "Encerrada"
+        : claimed
+          ? "Aguardando"
+          : done
+            ? "Receber"
+            : "Em andamento";
+      const shouldEnable = !retired && !claimed && done;
       if (
         action.textContent !== nextLabel ||
         action.disabled !== !shouldEnable
