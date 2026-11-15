@@ -1209,12 +1209,14 @@ body {
     flex-shrink: 0;
   }
 
+  #garagePanel .garage-footer,
   #shopPanel .garage-footer {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     column-gap: 12px;
   }
 
+  #garagePanel .garage-footer > *,
   #shopPanel .garage-footer > * {
     grid-column: 1;
     min-width: 0;
@@ -1222,11 +1224,16 @@ body {
     overflow-wrap: anywhere;
   }
 
+  #garagePanel .garage-footer > .garage-actions,
   #shopPanel .garage-footer > .garage-actions {
     grid-column: 2;
     grid-row: 1 / span 5;
     align-self: center;
     width: auto;
+  }
+
+  #garagePanel .garage-footer > .garage-actions {
+    grid-row: 1 / span 3;
   }
 
   .garage-footer-top {
