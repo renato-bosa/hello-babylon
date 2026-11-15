@@ -231,9 +231,110 @@ export function installApp(app) {
     return root;
   };
 
+  app.createOvalTicketItemPreview = function createOvalTicketItemPreview(
+    scene,
+    id
+  ) {
+    const root = new BABYLON.TransformNode("shopItem_" + id, scene);
+
+    const cardMat = new BABYLON.StandardMaterial("ticketCard_" + id, scene);
+    cardMat.diffuseColor = new BABYLON.Color3(0.95, 0.55, 0.15);
+    cardMat.emissiveColor = new BABYLON.Color3(0.45, 0.22, 0.05);
+    cardMat.specularColor = new BABYLON.Color3(1, 0.8, 0.4);
+
+    const neonMat = app.makeNeonMaterial(
+      "ticketNeon_" + id,
+      scene,
+      new BABYLON.Color3(1, 0.7, 0.25),
+      1
+    );
+    const darkMat = new BABYLON.StandardMaterial("ticketDark_" + id, scene);
+    darkMat.diffuseColor = new BABYLON.Color3(0.08, 0.05, 0.02);
+    darkMat.emissiveColor = new BABYLON.Color3(0.03, 0.02, 0.01);
+
+    const pedestal = BABYLON.MeshBuilder.CreateCylinder(
+      "ticketPed_" + id,
+      { diameter: 2.1, height: 0.16, tessellation: 28 },
+      scene
+    );
+    pedestal.position.y = 0.08;
+    pedestal.material = darkMat;
+    pedestal.parent = root;
+
+    const ring = BABYLON.MeshBuilder.CreateTorus(
+      "ticketRing_" + id,
+      { diameter: 2.0, thickness: 0.09, tessellation: 40 },
+      scene
+    );
+    ring.position.y = 0.16;
+    ring.material = neonMat;
+    ring.parent = root;
+
+    const card = BABYLON.MeshBuilder.CreateBox(
+      "ticketCardMesh_" + id,
+      { width: 1.7, height: 1.05, depth: 0.08 },
+      scene
+    );
+    card.position.y = 0.85;
+    card.rotation.x = -0.15;
+    card.material = cardMat;
+    card.parent = root;
+
+    const stripe = BABYLON.MeshBuilder.CreateBox(
+      "ticketStripe_" + id,
+      { width: 0.18, height: 1.05, depth: 0.09 },
+      scene
+    );
+    stripe.position.set(-0.55, 0.85, 0);
+    stripe.rotation.x = -0.15;
+    stripe.material = neonMat;
+    stripe.parent = root;
+
+    const badge = BABYLON.MeshBuilder.CreatePlane(
+      "ticketBadge_" + id,
+      { width: 1.6, height: 0.7 },
+      scene
+    );
+    badge.position.y = 1.75;
+    badge.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y;
+    const badgeMat = new BABYLON.StandardMaterial("ticketBadgeMat_" + id, scene);
+    const badgeTex = new BABYLON.DynamicTexture(
+      "ticketBadgeTex_" + id,
+      { width: 256, height: 128 },
+      scene,
+      false
+    );
+    badgeTex.hasAlpha = true;
+    const ctx = badgeTex.getContext();
+    ctx.clearRect(0, 0, 256, 128);
+    ctx.fillStyle = "rgba(20, 10, 2, 0.92)";
+    ctx.strokeStyle = "#ffb347";
+    ctx.lineWidth = 8;
+    ctx.fillRect(16, 16, 224, 96);
+    ctx.strokeRect(16, 16, 224, 96);
+    ctx.fillStyle = "#ffb347";
+    ctx.font = "bold 42px sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("TICKET", 128, 64);
+    badgeTex.update();
+    badgeMat.diffuseTexture = badgeTex;
+    badgeMat.emissiveTexture = badgeTex;
+    badgeMat.opacityTexture = badgeTex;
+    badgeMat.backFaceCulling = false;
+    badgeMat.disableLighting = true;
+    badge.material = badgeMat;
+    badge.parent = root;
+
+    return root;
+  };
+
   app.createShopItemPreview = function createShopItemPreview(scene, itemId) {
     if (itemId === "calibrated-tire") {
       return app.createCalibratedTireItemPreview(scene, itemId);
+    }
+    if (itemId === "oval-ticket") {
+      return app.createOvalTicketItemPreview(scene, itemId);
     }
     return app.createMultiplierItemPreview(scene, itemId || "multiplier");
   };

@@ -36,6 +36,7 @@
         <div class="menu-money" title="Moedas">
           <span>MOEDAS</span>
           <strong id="moneyLabel">0</strong>
+          <span id="ticketBadge" class="boost-badge ticket" hidden>Ticket ×0</span>
           <span id="multiplierBadge" class="boost-badge mult" hidden>×3 próxima</span>
           <span id="tireBadge" class="boost-badge tire" hidden>Pneu +25%</span>
         </div>
@@ -56,6 +57,10 @@
         <button type="button" class="rail-btn" id="btnGarage" title="Trocar carro">
           <span class="icon">▣</span>
           Garagem
+        </button>
+        <button type="button" class="rail-btn" id="btnMissions" title="Missões">
+          <span class="icon">★</span>
+          Missões
         </button>
       </aside>
 
@@ -104,6 +109,20 @@
           <button type="button" class="shop-buy" id="btnShopBuy" disabled>Comprar</button>
           <button type="button" class="garage-close" id="btnShopClose">Fechar</button>
         </div>
+      </div>
+    </div>
+    <div id="missionsPanel" aria-hidden="true">
+      <div class="missions-sheet">
+        <div class="missions-header">
+          <div class="missions-header-text">
+            <h2>MISSÕES</h2>
+            <p>Moedas · 1 missão pode dar ticket · reinicia em 30 min</p>
+          </div>
+          <button type="button" class="missions-close" id="btnMissionsClose">
+            Fechar
+          </button>
+        </div>
+        <div id="missionsList" class="missions-list"></div>
       </div>
     </div>
     <div id="debugPerfReport"></div>

@@ -141,6 +141,13 @@ export function installScene(app, world) {
 
       const finalPlace = world.getPlayerPlace();
       const didWin = app.registerWinIfFirst(finalPlace);
+      if (typeof app.recordMissionRaceResult === "function") {
+        app.recordMissionRaceResult({
+          place: finalPlace,
+          trackId: window.NEON_RUSH_ACTIVE_TRACK,
+          carId: world.player && world.player.carModelId,
+        });
+      }
       const reward = app.rewardCoinsForPlace(finalPlace);
       app.setProgressHud(1, "100%", "Progresso");
       app.placeLabel.textContent =

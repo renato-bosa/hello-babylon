@@ -354,6 +354,32 @@ body {
   text-shadow: 0 0 8px rgba(126, 200, 255, 0.55);
 }
 
+.boost-badge.ticket {
+  color: #ffb347;
+  text-shadow: 0 0 8px rgba(255, 179, 71, 0.55);
+}
+
+.play-btn.needs-ticket {
+  border-color: #ffb347;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 179, 71, 0.28),
+    rgba(120, 70, 20, 0.5)
+  );
+  color: #ffe7c2;
+  text-shadow: 0 0 10px rgba(255, 179, 71, 0.65);
+  box-shadow: 0 0 20px rgba(255, 179, 71, 0.25);
+  opacity: 0.85;
+  font-size: clamp(14px, 2.8vw, 18px);
+  letter-spacing: 1px;
+  padding: 14px 12px;
+  font-weight: 700;
+}
+
+.track-switch-btn.track-locked strong {
+  color: #ffb347;
+}
+
 .rail-btn {
   appearance: none;
   width: 100%;
@@ -384,7 +410,8 @@ body {
 .rail-btn:hover:not(:disabled),
 .rail-btn:focus-visible:not(:disabled),
 #mainMenu.garage-open #btnGarage,
-#mainMenu.shop-open #btnShop {
+#mainMenu.shop-open #btnShop,
+#mainMenu.missions-open #btnMissions {
   background: rgba(0, 229, 255, 0.18);
   box-shadow: 0 0 16px rgba(0, 229, 255, 0.3);
   outline: none;
@@ -513,9 +540,201 @@ body {
 #mainMenu.garage-open .menu-play-wrap,
 #mainMenu.garage-open .menu-brand p,
 #mainMenu.shop-open .menu-play-wrap,
-#mainMenu.shop-open .menu-brand p {
+#mainMenu.shop-open .menu-brand p,
+#mainMenu.missions-open .menu-play-wrap,
+#mainMenu.missions-open .menu-brand p,
+#mainMenu.missions-open .menu-rail {
   opacity: 0;
   pointer-events: none;
+}
+
+#missionsPanel {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 6;
+  pointer-events: none;
+  background: #070218;
+}
+
+#missionsPanel.show {
+  display: block;
+  pointer-events: auto;
+}
+
+.missions-sheet {
+  pointer-events: auto;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: max(18px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  border: none;
+  border-radius: 0;
+  background: #070218;
+  box-shadow: none;
+}
+
+.missions-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.missions-header-text h2 {
+  margin: 0;
+  font-family: "Orbitron", "Segoe UI", Tahoma, sans-serif;
+  font-size: clamp(24px, 5vw, 34px);
+  letter-spacing: 2px;
+  color: #ffb347;
+  text-shadow: 0 0 12px rgba(255, 179, 71, 0.45);
+}
+
+.missions-header-text p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  letter-spacing: 1px;
+  color: #b8f3ff;
+  opacity: 0.8;
+}
+
+.missions-close {
+  appearance: none;
+  border: 1px solid #00e5ff;
+  border-radius: 10px;
+  background: rgba(0, 229, 255, 0.1);
+  color: #b8f3ff;
+  font-size: 14px;
+  letter-spacing: 1px;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.missions-close:hover {
+  background: rgba(0, 229, 255, 0.2);
+}
+
+.missions-list {
+  flex: 1;
+  min-height: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  padding: 4px 2px 12px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  background: #070218;
+}
+
+.mission-card {
+  flex: 0 0 min(340px, 84vw);
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  border: 2px solid rgba(0, 229, 255, 0.45);
+  border-radius: 18px;
+  background: rgba(14, 6, 40, 0.98);
+  padding: 16px 18px 14px;
+  min-height: 0;
+  height: fit-content;
+  align-self: center;
+}
+
+.mission-card.ready {
+  border-color: rgba(57, 255, 159, 0.65);
+  box-shadow: 0 0 18px rgba(57, 255, 159, 0.22);
+}
+
+.mission-card.claimed {
+  opacity: 0.72;
+  border-color: rgba(255, 179, 71, 0.4);
+}
+
+.mission-card.ticket-reward {
+  border-color: rgba(255, 179, 71, 0.7);
+}
+
+.mission-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mission-card-head strong {
+  color: #fff;
+  font-size: clamp(20px, 3.4vw, 26px);
+  letter-spacing: 1px;
+  line-height: 1.2;
+}
+
+.mission-reward {
+  color: #ffd24a;
+  font-size: clamp(15px, 2.4vw, 18px);
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.mission-reward.ticket {
+  color: #ffb347;
+}
+
+.mission-desc {
+  margin: 10px 0 12px;
+  font-size: clamp(17px, 2.8vw, 22px);
+  line-height: 1.35;
+  color: #e7fbff;
+  opacity: 0.95;
+  flex: 0 0 auto;
+}
+
+.mission-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 0;
+}
+
+.mission-progress {
+  font-size: clamp(15px, 2.4vw, 18px);
+  color: #7ec8ff;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1px;
+  font-weight: 700;
+}
+
+.mission-claim {
+  appearance: none;
+  border: 2px solid #39ff9f;
+  border-radius: 12px;
+  background: rgba(57, 255, 159, 0.14);
+  color: #39ff9f;
+  font-size: clamp(14px, 2.2vw, 16px);
+  letter-spacing: 1px;
+  padding: 10px 16px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.mission-claim:hover:not(:disabled) {
+  background: rgba(57, 255, 159, 0.26);
+}
+
+.mission-claim:disabled {
+  border-color: rgba(184, 243, 255, 0.25);
+  color: rgba(184, 243, 255, 0.55);
+  background: transparent;
+  cursor: default;
 }
 
 #shopPanel {

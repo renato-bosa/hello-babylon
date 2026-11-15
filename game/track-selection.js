@@ -22,16 +22,35 @@ export function installApp(app) {
   app.refreshTrackLabel = function refreshTrackLabel() {
     const label = document.getElementById("trackNameLabel");
     if (!label) return;
+    const switchBtn = document.getElementById("btnTrackSwitch");
     const ids = app.getTrackIds();
     const id = window.NEON_RUSH_ACTIVE_TRACK;
     const data =
       window.NEON_RUSH_TRACKS && window.NEON_RUSH_TRACKS[id];
     const name = data ? data.name : id || "—";
     const idx = Math.max(0, ids.indexOf(id));
-    label.textContent =
+    const ticketCost =
+      typeof app.getTrackTicketCost === "function"
+        ? app.getTrackTicketCost(id)
+        : 0;
+    const locked =
+      ticketCost > 0 &&
+      typeof app.hasOvalTickets === "function" &&
+      !app.hasOvalTickets(ticketCost);
+    let text =
       ids.length > 1
         ? name + "  (" + (idx + 1) + "/" + ids.length + ")"
         : name;
+    if (ticketCost > 0) {
+      text += locked ? "  · 🔒 ticket" : "  · 🎟";
+    }
+    label.textContent = text;
+    if (switchBtn) {
+      switchBtn.classList.toggle("track-locked", locked);
+    }
+    if (typeof app.refreshPlayButton === "function") {
+      app.refreshPlayButton();
+    }
   };
 
   app.stepActiveTrack = function stepActiveTrack(delta) {
@@ -76,6 +95,9 @@ export function initializeTrackSelection(app) {
   app.switchTrackInScene = null;
   app.applySavedTrack();
   app.refreshTrackLabel();
+  if (typeof app.refreshPlayButton === "function") {
+    app.refreshPlayButton();
+  }
   app.setCanvasInteractive(false);
   document
     .getElementById("btnTrackSwitch")

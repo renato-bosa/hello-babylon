@@ -385,6 +385,7 @@ export function bindTrackSwitch(app, world) {
     if (!force) {
       world.closeGarage({ restoreCar: true });
       world.closeShop({ restoreCar: true });
+      if (typeof world.closeMissions === "function") world.closeMissions();
     }
 
     world.clearTrackWorld();

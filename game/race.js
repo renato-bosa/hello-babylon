@@ -94,6 +94,7 @@ export function installScene(app, world) {
     app.setSpeedHud(0, app.PHYSICS.maxSpeed);
     app.refreshAccountStats();
     world.enterMenuCamera();
+    if (typeof world.closeMissions === "function") world.closeMissions();
     world.syncMobileControlsVisibility();
   };
 
@@ -109,6 +110,31 @@ export function installScene(app, world) {
   };
 
   world.startRaceFromMenu = function startRaceFromMenu() {
+    if (typeof world.closeMissions === "function") world.closeMissions();
+    const ticketCost =
+      typeof app.getTrackTicketCost === "function"
+        ? app.getTrackTicketCost()
+        : 0;
+    if (ticketCost > 0) {
+      if (!app.hasOvalTickets(ticketCost)) {
+        window.alert(
+          "Neon Oval precisa de ticket!\nCompre um Ticket Oval na Loja."
+        );
+        if (typeof app.refreshPlayButton === "function") {
+          app.refreshPlayButton();
+        }
+        return;
+      }
+      if (!app.consumeOvalTickets(ticketCost)) {
+        window.alert("Não foi possível usar o ticket. Tente de novo.");
+        return;
+      }
+      app.refreshMoneyLabel();
+      if (typeof app.refreshTrackLabel === "function") {
+        app.refreshTrackLabel();
+      }
+    }
+
     world.resetPostRaceView();
     world.closeGarage();
     world.closeShop();
@@ -233,6 +259,13 @@ export function bindRaceControls(app, world) {
       } else if (e.code === "Escape") {
         e.preventDefault();
         world.closeShop();
+      }
+      return;
+    }
+    if (world.missionsOpen) {
+      if (e.code === "Escape") {
+        e.preventDefault();
+        world.closeMissions();
       }
       return;
     }

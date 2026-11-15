@@ -54,7 +54,11 @@ export function installScene(app, world) {
       touch &&
       !app.botBench.active &&
       !app.perfTestRunning &&
-      (!world.inMenu || world.garageOpen || world.shopOpen || world.raceOver);
+      (!world.inMenu ||
+        world.garageOpen ||
+        world.shopOpen ||
+        world.missionsOpen ||
+        world.raceOver);
     if (typeof window.setMobileControlsVisible === "function") {
       window.setMobileControlsVisible(show);
     }
@@ -97,6 +101,11 @@ export function installScene(app, world) {
       if (rightPressed) world.stepGarage(1);
       if (app.consumeVirtualConfirm()) world.equipGarageCar();
       if (app.consumeVirtualBack()) world.closeGarage();
+      return;
+    }
+    if (world.missionsOpen) {
+      if (app.consumeVirtualBack()) world.closeMissions();
+      app.consumeVirtualConfirm();
       return;
     }
     app.consumeVirtualConfirm();

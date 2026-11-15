@@ -51,8 +51,82 @@ export function installApp(app) {
     return min + Math.floor(Math.random() * (max - min + 1));
   };
 
+  app.loadOvalTickets = function loadOvalTickets() {
+    const saved = localStorage.getItem(app.OVAL_TICKETS_KEY);
+    const value = saved === null ? 0 : parseInt(saved, 10);
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+  };
+
+  app.saveOvalTickets = function saveOvalTickets(amount) {
+    localStorage.setItem(app.OVAL_TICKETS_KEY, String(Math.max(0, amount | 0)));
+  };
+
+  app.getOvalTickets = function getOvalTickets() {
+    return app.loadOvalTickets();
+  };
+
+  app.addOvalTickets = function addOvalTickets(amount) {
+    const next = app.loadOvalTickets() + Math.max(0, amount | 0);
+    app.saveOvalTickets(next);
+    return next;
+  };
+
+  app.consumeOvalTickets = function consumeOvalTickets(amount) {
+    const cost = Math.max(1, amount | 0);
+    const have = app.loadOvalTickets();
+    if (have < cost) return false;
+    app.saveOvalTickets(have - cost);
+    return true;
+  };
+
+  app.hasOvalTickets = function hasOvalTickets(amount) {
+    return app.loadOvalTickets() >= Math.max(1, amount | 0);
+  };
+
+  app.activateOvalTicket = function activateOvalTicket() {
+    app.addOvalTickets(1);
+  };
+
+  app.getTrackTicketCost = function getTrackTicketCost(trackId) {
+    const id = trackId || window.NEON_RUSH_ACTIVE_TRACK;
+    const data =
+      window.NEON_RUSH_TRACKS && id ? window.NEON_RUSH_TRACKS[id] : null;
+    const feats = data && data.features ? data.features : null;
+    if (!feats || !feats.requiresTicket) return 0;
+    return typeof feats.ticketCost === "number" ? feats.ticketCost : 1;
+  };
+
+  app.activeTrackRequiresTicket = function activeTrackRequiresTicket() {
+    return app.getTrackTicketCost() > 0;
+  };
+
+  app.refreshPlayButton = function refreshPlayButton() {
+    const btn = app.btnStartRace;
+    if (!btn) return;
+    const cost = app.getTrackTicketCost();
+    const needsTicket = cost > 0;
+    const canPlay = !needsTicket || app.hasOvalTickets(cost);
+    btn.classList.toggle("needs-ticket", needsTicket && !canPlay);
+    if (needsTicket && !canPlay) {
+      btn.textContent = "SEM TICKET";
+      btn.title = "Compre um Ticket Oval na Loja para correr aqui";
+    } else if (needsTicket) {
+      btn.textContent = "JOGAR (−" + cost + ")";
+      btn.title = "Gasta " + cost + " ticket para correr no Neon Oval";
+    } else {
+      btn.textContent = "JOGAR";
+      btn.title = "";
+    }
+  };
+
   app.refreshMoneyLabel = function refreshMoneyLabel() {
     app.moneyLabel.textContent = String(app.coins);
+    const ticketBadge = document.getElementById("ticketBadge");
+    if (ticketBadge) {
+      const tickets = app.getOvalTickets();
+      ticketBadge.textContent = "Ticket ×" + tickets;
+      ticketBadge.hidden = tickets <= 0;
+    }
     const multBadge = document.getElementById("multiplierBadge");
     if (multBadge) {
       multBadge.hidden = !app.hasPendingCoinMultiplier();
@@ -62,10 +136,29 @@ export function installApp(app) {
       tireBadge.textContent = "Pneu +" + app.CALIBRATED_TIRE_BONUS_PCT + "%";
       tireBadge.hidden = !app.hasPendingCalibratedTire();
     }
+    if (typeof app.refreshPlayButton === "function") {
+      app.refreshPlayButton();
+    }
+  };
+
+  app.getCoinRewardsForActiveTrack = function getCoinRewardsForActiveTrack() {
+    try {
+      const data =
+        typeof app.getActiveTrackData === "function"
+          ? app.getActiveTrackData()
+          : null;
+      const custom =
+        data && data.features && data.features.coinRewards
+          ? data.features.coinRewards
+          : null;
+      if (custom && typeof custom === "object") return custom;
+    } catch (e) {}
+    return app.COIN_REWARDS;
   };
 
   app.rewardCoinsForPlace = function rewardCoinsForPlace(place) {
-    const base = app.COIN_REWARDS[place] || 0;
+    const table = app.getCoinRewardsForActiveTrack();
+    const base = table[place] || 0;
     const multiplier = app.loadPendingCoinMultiplier();
     const gained = base * multiplier;
     if (multiplier > 1) {
@@ -211,6 +304,8 @@ export function initializeEconomy(app) {
   app.CALIBRATED_TIRE_BONUS_PCT = Math.round(
     (app.CALIBRATED_TIRE_SPEED_MULT - 1) * 100
   );
+  app.OVAL_TICKETS_KEY = "neonRush.ovalTickets";
+  app.OVAL_TICKET_PRICE = 20;
   app.coins = app.loadCoins();
   app.refreshMoneyLabel();
 }

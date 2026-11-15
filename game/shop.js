@@ -84,11 +84,28 @@ export function installScene(app, world) {
     }
   };
 
+  world.ensureOvalTicketOffer = function ensureOvalTicketOffer() {
+    const hasTicket = world.shopOffers.some(function (o) {
+      return o.kind === "item" && o.itemId === "oval-ticket";
+    });
+    if (hasTicket) return;
+    const ticket = world.makeItemOffer("oval-ticket");
+    if (world.shopOffers.length < world.SHOP_OFFER_COUNT) {
+      world.shopOffers.push(ticket);
+    } else if (world.shopOffers.length) {
+      // Garante ticket na vitrine mesmo com a loja cheia de carros
+      world.shopOffers[world.shopOffers.length - 1] = ticket;
+    } else {
+      world.shopOffers.push(ticket);
+    }
+  };
+
   world.rollShopOffers = function rollShopOffers() {
     const pool = app.shuffleArray(world.getUnownedCarIds());
     const picked = pool.slice(0, world.SHOP_OFFER_COUNT);
     world.shopOffers = picked.map(world.makeCarOffer);
     world.padShopOffersWithItems();
+    world.ensureOvalTicketOffer();
     world.shopIndex = 0;
   };
 
@@ -269,16 +286,21 @@ export function installScene(app, world) {
       }
     }
 
-    // Item ativado: remove cópias iguais da vitrine
+    // Item ativado: remove cópias iguais (exceto stackable, ex.: tickets)
     if (boughtItemId) {
-      world.stripItemOffersOfType(boughtItemId);
+      const boughtItem = world.SHOP_FILLER_ITEMS[boughtItemId];
+      if (!boughtItem || !boughtItem.stackable) {
+        world.stripItemOffersOfType(boughtItemId);
+      }
     }
 
+    world.ensureOvalTicketOffer();
     world.showShopOfferAt(world.shopIndex);
   };
 
   world.openShop = function openShop() {
     if (!world.inMenu || app.perfTestRunning) return;
+    if (typeof world.closeMissions === "function") world.closeMissions();
     world.closeGarage({ restoreCar: false });
     world.rollShopOffers();
     world.shopOpen = true;
@@ -349,6 +371,26 @@ export function initializeShop(app, world) {
         return !app.hasPendingCalibratedTire();
       },
       activate: app.activateCalibratedTire,
+    },
+    "oval-ticket": {
+      id: "oval-ticket",
+      name: "Ticket Oval",
+      color: "#ffb347",
+      blurb: "1 entrada no Neon Oval",
+      stackable: true,
+      rollPrice: function () {
+        return app.OVAL_TICKET_PRICE;
+      },
+      canOffer: function () {
+        return true;
+      },
+      activate: function () {
+        app.activateOvalTicket();
+        app.refreshMoneyLabel();
+        if (typeof app.refreshTrackLabel === "function") {
+          app.refreshTrackLabel();
+        }
+      },
     },
   };
 }

@@ -56,6 +56,10 @@
       laps: 5,
       botCount: 6,
       noBuildings: true,
+      // Premiação maior: mapa pago, mais rivais e corrida mais longa
+      coinRewards: { 1: 22, 2: 15, 3: 10 },
+      requiresTicket: true,
+      ticketCost: 1,
     },
 
     theme: {
