@@ -1,0 +1,33 @@
+OK: Hub principal mobile
+OK: JOGAR
+OK: Botao Missoes
+OK: Moedas
+OK: Rail lateral
+OK: Logo
+BOX .menu-rail: {'x': 8, 'y': 215.5, 'width': 70, 'height': 413}
+BOX .menu-play-wrap: {'x': 232, 'y': 326.5, 'width': 150, 'height': 191}
+BOX .menu-brand: {'x': 97.5, 'y': 18, 'width': 195, 'height': 104}
+BOX #btnMissions: {'x': 8, 'y': 556.5, 'width': 70, 'height': 72}
+BOX .menu-money: {'x': 8, 'y': 215.5, 'width': 70, 'height': 59}
+BOX #btnStartRace: {'x': 232, 'y': 422.5, 'width': 150, 'height': 69}
+BOX .menu-brand h1: {'x': 97.5, 'y': 18, 'width': 195, 'height': 70}
+INFO: logo/rail overlap xy=False
+INFO: logo/play overlap xy=False
+OK: Painel Missoes abriu
+OK: Card de missao
+OK: Fechar missoes
+OK: Seta anterior
+OK: Seta proxima
+OK: Dots
+INFO: cards no DOM = 5
+BOX #missionsPanel: {'x': 0, 'y': 0, 'width': 390, 'height': 844}
+BOX .missions-sheet: {'x': 0, 'y': 0, 'width': 390, 'height': 844}
+BOX .mission-card: {'x': 70, 'y': 381.53125, 'width': 250, 'height': 142.9375}
+BOX .missions-header: {'x': 18, 'y': 18, 'width': 354, 'height': 76}
+BOX .missions-carousel: {'x': 18, 'y': 112, 'width': 354, 'height': 682}
+BOX #btnMissionsClose: {'x': 288.421875, 'y': 18, 'width': 83.578125, 'height': 38}
+INFO missionsPanel styles: {"display": "block", "zIndex": "6", "bg": "rgb(7, 2, 24)", "w": 390, "h": 844}
+INFO: rail opacity with missions open = 0
+INFO card: {"top": 381.53125, "bottom": 524.46875, "height": 142.9375, "text": "As do túnel\n+1 ticket\n\nFique em 1º na Túnel Rush\n\n0 / 1\nEm andamento"}
+OK: swipe gesture dispatched
+OK: Missoes fechou

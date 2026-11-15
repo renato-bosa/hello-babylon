@@ -50,15 +50,13 @@ export function installScene(app, world) {
         ? "▲ acelerar · ▼ frear · ← → virar"
         : "↑ acelerar · ↓ frear · ← → virar";
     }
+    // Controles de corrida só na pista / pós-corrida — nunca no menu
+    // (hub, loja, garagem, missões já têm UI própria).
     const show =
       touch &&
       !app.botBench.active &&
       !app.perfTestRunning &&
-      (!world.inMenu ||
-        world.garageOpen ||
-        world.shopOpen ||
-        world.missionsOpen ||
-        world.raceOver);
+      (!world.inMenu || world.raceOver);
     if (typeof window.setMobileControlsVisible === "function") {
       window.setMobileControlsVisible(show);
     }
