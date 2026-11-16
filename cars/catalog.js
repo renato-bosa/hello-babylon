@@ -120,6 +120,15 @@
       accentColor: [0.55, 0.48, 0.22],
       ownedByDefault: false,
     },
+    crashing: {
+      id: "crashing",
+      name: "Crashing",
+      rarity: "legendary",
+      model: "crashing",
+      bodyColor: [0.18, 0.42, 0.98],
+      accentColor: [0.35, 1, 0.95],
+      ownedByDefault: false,
+    },
   };
 
   /** Sorteia um preço justo dentro da faixa da raridade do carro */

@@ -1589,6 +1589,259 @@
         return car;
       }
 
+      function createCrashingCar(scene, id, bodyColor, accentColor) {
+        // Lendário: tão comprido quanto o Turbocharger, porém fino e futurista
+        const car = new BABYLON.TransformNode("car_" + id, scene);
+
+        const bodyMat = new BABYLON.StandardMaterial("crashBody_" + id, scene);
+        bodyMat.diffuseColor = bodyColor.scale(0.45);
+        bodyMat.emissiveColor = bodyColor.scale(0.4);
+        bodyMat.specularColor = new BABYLON.Color3(0.55, 0.7, 0.95);
+
+        const accentMat = makeNeonMaterial(
+          "crashAccent_" + id,
+          scene,
+          accentColor,
+          1.15
+        );
+
+        const darkMat = new BABYLON.StandardMaterial("crashDark_" + id, scene);
+        darkMat.diffuseColor = new BABYLON.Color3(0.04, 0.06, 0.1);
+        darkMat.emissiveColor = new BABYLON.Color3(0.02, 0.04, 0.08);
+
+        const glassMat = new BABYLON.StandardMaterial("crashGlass_" + id, scene);
+        glassMat.diffuseColor = new BABYLON.Color3(0.15, 0.45, 0.65);
+        glassMat.emissiveColor = new BABYLON.Color3(0.25, 0.75, 0.95);
+        glassMat.alpha = 0.48;
+        glassMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND;
+        glassMat.backFaceCulling = false;
+
+        const chromeMat = new BABYLON.StandardMaterial("crashChrome_" + id, scene);
+        chromeMat.diffuseColor = new BABYLON.Color3(0.35, 0.45, 0.55);
+        chromeMat.emissiveColor = new BABYLON.Color3(0.18, 0.28, 0.4);
+        chromeMat.specularColor = new BABYLON.Color3(0.9, 0.95, 1);
+
+        // Casco longo e estreito
+        const body = BABYLON.MeshBuilder.CreateBox(
+          "crashBody_" + id,
+          { width: 1.15, height: 0.32, depth: 5.15 },
+          scene
+        );
+        body.position.y = 0.48;
+        body.material = bodyMat;
+        body.parent = car;
+
+        // Deck superior em degrau (perfil de cunha)
+        const deck = BABYLON.MeshBuilder.CreateBox(
+          "crashDeck_" + id,
+          { width: 0.95, height: 0.14, depth: 3.6 },
+          scene
+        );
+        deck.position.set(0, 0.68, 0.15);
+        deck.material = bodyMat;
+        deck.parent = car;
+
+        // Nariz afilado em duas etapas
+        const nose = BABYLON.MeshBuilder.CreateBox(
+          "crashNose_" + id,
+          { width: 0.78, height: 0.2, depth: 1.15 },
+          scene
+        );
+        nose.position.set(0, 0.46, 2.7);
+        nose.material = bodyMat;
+        nose.parent = car;
+
+        const tip = BABYLON.MeshBuilder.CreateBox(
+          "crashTip_" + id,
+          { width: 0.42, height: 0.12, depth: 0.7 },
+          scene
+        );
+        tip.position.set(0, 0.44, 3.35);
+        tip.material = accentMat;
+        tip.parent = car;
+
+        // Faixa neon central no capô
+        const spine = BABYLON.MeshBuilder.CreateBox(
+          "crashSpine_" + id,
+          { width: 0.12, height: 0.05, depth: 4.2 },
+          scene
+        );
+        spine.position.set(0, 0.78, 0.35);
+        spine.material = accentMat;
+        spine.parent = car;
+
+        // Cabine baixa e estreita
+        const cabin = BABYLON.MeshBuilder.CreateBox(
+          "crashCabin_" + id,
+          { width: 0.88, height: 0.38, depth: 1.35 },
+          scene
+        );
+        cabin.position.set(0, 0.88, -0.45);
+        cabin.material = darkMat;
+        cabin.parent = car;
+
+        const canopy = BABYLON.MeshBuilder.CreateSphere(
+          "crashCanopy_" + id,
+          { diameter: 0.95, segments: 14 },
+          scene
+        );
+        canopy.scaling.set(0.95, 0.42, 1.45);
+        canopy.position.set(0, 0.98, -0.35);
+        canopy.material = glassMat;
+        canopy.parent = car;
+
+        const windshield = BABYLON.MeshBuilder.CreateBox(
+          "crashWind_" + id,
+          { width: 0.82, height: 0.28, depth: 0.06 },
+          scene
+        );
+        windshield.position.set(0, 0.92, 0.28);
+        windshield.rotation.x = -0.48;
+        windshield.material = glassMat;
+        windshield.parent = car;
+
+        // Trilhos laterais futuristas
+        const railL = BABYLON.MeshBuilder.CreateBox(
+          "crashRailL_" + id,
+          { width: 0.08, height: 0.1, depth: 4.6 },
+          scene
+        );
+        railL.position.set(-0.62, 0.36, 0.1);
+        railL.material = accentMat;
+        railL.parent = car;
+
+        const railR = railL.clone("crashRailR_" + id);
+        railR.position.x = 0.62;
+        railR.parent = car;
+
+        // Aletas traseiras finas
+        const finL = BABYLON.MeshBuilder.CreateBox(
+          "crashFinL_" + id,
+          { width: 0.06, height: 0.42, depth: 0.55 },
+          scene
+        );
+        finL.position.set(-0.38, 0.95, -2.25);
+        finL.rotation.z = 0.18;
+        finL.material = accentMat;
+        finL.parent = car;
+
+        const finR = finL.clone("crashFinR_" + id);
+        finR.position.x = 0.38;
+        finR.rotation.z = -0.18;
+        finR.parent = car;
+
+        const wing = BABYLON.MeshBuilder.CreateBox(
+          "crashWing_" + id,
+          { width: 1.05, height: 0.06, depth: 0.38 },
+          scene
+        );
+        wing.position.set(0, 1.18, -2.28);
+        wing.material = chromeMat;
+        wing.parent = car;
+
+        // Propulsão traseira (anéis)
+        const thrusterL = BABYLON.MeshBuilder.CreateCylinder(
+          "crashThrustL_" + id,
+          { diameter: 0.28, height: 0.22, tessellation: 12 },
+          scene
+        );
+        thrusterL.rotation.x = Math.PI / 2;
+        thrusterL.position.set(-0.28, 0.4, -2.62);
+        thrusterL.material = accentMat;
+        thrusterL.parent = car;
+
+        const thrusterR = thrusterL.clone("crashThrustR_" + id);
+        thrusterR.position.x = 0.28;
+        thrusterR.parent = car;
+
+        const thrustCore = BABYLON.MeshBuilder.CreateCylinder(
+          "crashThrustCore_" + id,
+          { diameter: 0.18, height: 0.16, tessellation: 10 },
+          scene
+        );
+        thrustCore.rotation.x = Math.PI / 2;
+        thrustCore.position.set(0, 0.52, -2.58);
+        thrustCore.material = accentMat;
+        thrustCore.parent = car;
+
+        // Faróis em barra (estilo HUD)
+        const headBar = BABYLON.MeshBuilder.CreateBox(
+          "crashHead_" + id,
+          { width: 0.72, height: 0.08, depth: 0.1 },
+          scene
+        );
+        headBar.position.set(0, 0.44, 3.62);
+        headBar.material = accentMat;
+        headBar.parent = car;
+
+        const headL = BABYLON.MeshBuilder.CreateBox(
+          "crashHeadL_" + id,
+          { width: 0.18, height: 0.1, depth: 0.12 },
+          scene
+        );
+        headL.position.set(-0.38, 0.44, 3.55);
+        headL.material = accentMat;
+        headL.parent = car;
+
+        const headR = headL.clone("crashHeadR_" + id);
+        headR.position.x = 0.38;
+        headR.parent = car;
+
+        // Luzes de status no flanco
+        for (let i = 0; i < 4; i++) {
+          const pip = BABYLON.MeshBuilder.CreateBox(
+            "crashPip_" + id + "_" + i,
+            { width: 0.08, height: 0.08, depth: 0.08 },
+            scene
+          );
+          pip.position.set(0.58, 0.55, 1.4 - i * 0.55);
+          pip.material = accentMat;
+          pip.parent = car;
+          const pipL = pip.clone("crashPipL_" + id + "_" + i);
+          pipL.position.x = -0.58;
+          pipL.parent = car;
+        }
+
+        function addWheel(name, x, z) {
+          const wheel = BABYLON.MeshBuilder.CreateCylinder(
+            name,
+            { diameter: 0.52, height: 0.2, tessellation: 16 },
+            scene
+          );
+          wheel.rotation.z = Math.PI / 2;
+          wheel.position.set(x, 0.26, z);
+          wheel.material = darkMat;
+          wheel.parent = car;
+
+          const rim = BABYLON.MeshBuilder.CreateCylinder(
+            name + "_rim",
+            { diameter: 0.28, height: 0.22, tessellation: 12 },
+            scene
+          );
+          rim.rotation.z = Math.PI / 2;
+          rim.position.set(x, 0.26, z);
+          rim.material = accentMat;
+          rim.parent = car;
+
+          const cover = BABYLON.MeshBuilder.CreateBox(
+            name + "_cover",
+            { width: 0.12, height: 0.34, depth: 0.42 },
+            scene
+          );
+          cover.position.set(x * 0.92, 0.34, z);
+          cover.material = chromeMat;
+          cover.parent = car;
+        }
+
+        // Eixo longo: rodas bem espaçadas no chassi fino
+        addWheel("crashFL_" + id, -0.58, 1.65);
+        addWheel("crashFR_" + id, 0.58, 1.65);
+        addWheel("crashBL_" + id, -0.58, -1.75);
+        addWheel("crashBR_" + id, 0.58, -1.75);
+
+        return car;
+      }
+
       function createCarByModel(scene, modelId, instanceId, bodyColor, accentColor) {
         if (modelId === "turbocharger") {
           return createTurbochargerCar(
@@ -1621,6 +1874,9 @@
         }
         if (modelId === "tanque") {
           return createTanque(scene, instanceId, bodyColor, accentColor);
+        }
+        if (modelId === "crashing") {
+          return createCrashingCar(scene, instanceId, bodyColor, accentColor);
         }
         return createStarterCar(scene, instanceId, bodyColor, accentColor);
       }
