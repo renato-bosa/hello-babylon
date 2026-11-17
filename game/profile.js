@@ -11,6 +11,16 @@ export function installApp(app) {
     localStorage.setItem(app.COINS_STORAGE_KEY, String(amount));
   };
 
+  app.loadFichas = function loadFichas() {
+    const saved = localStorage.getItem(app.FICHAS_STORAGE_KEY);
+    const value = saved === null ? 0 : parseInt(saved, 10);
+    return Number.isFinite(value) && value >= 0 ? value : 0;
+  };
+
+  app.saveFichas = function saveFichas(amount) {
+    localStorage.setItem(app.FICHAS_STORAGE_KEY, String(amount));
+  };
+
   app.loadPendingCoinMultiplier = function loadPendingCoinMultiplier() {
     const saved = parseInt(
       localStorage.getItem(app.COIN_MULTIPLIER_KEY) || "1",
@@ -131,10 +141,29 @@ export function installApp(app) {
     );
   };
 
+  app.getFichaIconHtml = function getFichaIconHtml(className) {
+    return (
+      '<svg class="' +
+      (className || "ficha-icon") +
+      '" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+      '<circle cx="12" cy="12" r="10" fill="#e53935" stroke="#8e1512" stroke-width="2"/>' +
+      '<circle cx="12" cy="12" r="7.4" fill="none" stroke="#ff8a80" stroke-width="1.2"/>' +
+      '<path fill="#b71c1c" d="M12 5.2l1.55 4.05 4.35.18-3.4 2.7 1.15 4.2L12 14.4l-3.65 1.93 1.15-4.2-3.4-2.7 4.35-.18z"/>' +
+      "</svg>"
+    );
+  };
+
   app.refreshMoneyLabel = function refreshMoneyLabel(displayCoins) {
     if (!app._coinFlyActive || displayCoins != null) {
       const shown = displayCoins != null ? displayCoins : app.coins;
-      app.moneyLabel.textContent = String(shown);
+      if (app.moneyLabel) app.moneyLabel.textContent = String(shown);
+    }
+    if (app.fichaLabel && !app._fichaFlyActive) {
+      if (app._fichaFlyHold != null) {
+        app.fichaLabel.textContent = String(app._fichaFlyHold);
+      } else {
+        app.fichaLabel.textContent = String(app.fichas || 0);
+      }
     }
     const ticketBadge = document.getElementById("ticketBadge");
     if (ticketBadge) {
@@ -159,11 +188,22 @@ export function installApp(app) {
     }
   };
 
-  app.playCoinFlyCelebration = function playCoinFlyCelebration(pending) {
-    if (!pending || !(pending.amount > 0) || !app.moneyLabel) {
-      app.refreshMoneyLabel();
+  app.playCurrencyFlyCelebration = function playCurrencyFlyCelebration(opts) {
+    const pending = opts && opts.pending;
+    const labelEl = opts && opts.labelEl;
+    const getIconHtml = opts && opts.getIconHtml;
+    const flyClass = (opts && opts.flyClass) || "fly-coin";
+    const iconClass = (opts && opts.iconClass) || "coin-icon coin-icon--fly";
+    const pulseClass = (opts && opts.pulseClass) || "coin-pulse";
+    const activeFlag = (opts && opts.activeFlag) || "_coinFlyActive";
+    const onComplete = opts && opts.onComplete;
+
+    if (!pending || !(pending.amount > 0) || !labelEl || typeof getIconHtml !== "function") {
+      if (typeof onComplete === "function") onComplete();
+      else app.refreshMoneyLabel();
       return;
     }
+
     const from = pending.from | 0;
     const to = pending.to | 0;
     const amount = pending.amount | 0;
@@ -177,28 +217,29 @@ export function installApp(app) {
     }
     layer.innerHTML = "";
 
-    const hud =
+    const target =
+      (opts && opts.targetEl) ||
       document.getElementById("btnAccount") ||
       document.querySelector(".menu-account") ||
-      app.moneyLabel.parentElement;
-    const hudRect = hud.getBoundingClientRect();
-    const destX = hudRect.left + hudRect.width * 0.5;
-    const destY = hudRect.top + Math.min(hudRect.height * 0.55, 36);
+      labelEl;
+    const targetRect = target.getBoundingClientRect();
+    const destX = targetRect.left + targetRect.width * 0.5;
+    const destY = targetRect.top + targetRect.height * 0.5;
 
     const originX = window.innerWidth * 0.5;
     const originY = window.innerHeight * 0.48;
-    const coinCount = Math.min(14, Math.max(6, Math.round(amount / 1.5)));
+    const pieceCount = Math.min(14, Math.max(6, Math.round(amount / 1.5)));
     const flightMs = 1250;
     const staggerMs = 55;
 
-    app._coinFlyActive = true;
-    app.moneyLabel.textContent = String(from);
-    if (hud) hud.classList.remove("coin-pulse");
+    app[activeFlag] = true;
+    labelEl.textContent = String(from);
+    if (target) target.classList.remove(pulseClass);
 
-    for (let i = 0; i < coinCount; i++) {
+    for (let i = 0; i < pieceCount; i++) {
       const el = document.createElement("div");
-      el.className = "fly-coin";
-      el.innerHTML = app.getCoinIconHtml("coin-icon coin-icon--fly");
+      el.className = flyClass;
+      el.innerHTML = getIconHtml(iconClass);
       const sx = originX + (Math.random() - 0.5) * 100;
       const sy = originY + (Math.random() - 0.5) * 70;
       el.style.left = sx + "px";
@@ -261,7 +302,7 @@ export function installApp(app) {
     }
 
     const countDelay = 180;
-    const countMs = flightMs + (coinCount - 1) * staggerMs * 0.65;
+    const countMs = flightMs + (pieceCount - 1) * staggerMs * 0.65;
     const t0 = performance.now();
 
     function tick(now) {
@@ -270,24 +311,99 @@ export function installApp(app) {
         Math.max(0, (now - t0 - countDelay) / countMs)
       );
       const eased = 1 - Math.pow(1 - t, 3);
-      app.moneyLabel.textContent = String(
-        Math.round(from + (to - from) * eased)
-      );
+      labelEl.textContent = String(Math.round(from + (to - from) * eased));
       if (t < 1) {
         requestAnimationFrame(tick);
         return;
       }
-      app._coinFlyActive = false;
-      app.refreshMoneyLabel();
+      app[activeFlag] = false;
       layer.innerHTML = "";
-      if (hud) {
-        hud.classList.add("coin-pulse");
+      if (target) {
+        target.classList.add(pulseClass);
         setTimeout(function () {
-          hud.classList.remove("coin-pulse");
+          target.classList.remove(pulseClass);
         }, 450);
       }
+      if (typeof onComplete === "function") onComplete();
+      else app.refreshMoneyLabel();
     }
     requestAnimationFrame(tick);
+  };
+
+  app.playCoinFlyCelebration = function playCoinFlyCelebration(pending, onComplete) {
+    app.playCurrencyFlyCelebration({
+      pending: pending,
+      labelEl: app.moneyLabel,
+      targetEl:
+        document.querySelector(".menu-money-value") ||
+        document.getElementById("btnAccount"),
+      getIconHtml: app.getCoinIconHtml,
+      flyClass: "fly-coin",
+      iconClass: "coin-icon coin-icon--fly",
+      pulseClass: "coin-pulse",
+      activeFlag: "_coinFlyActive",
+      onComplete: function () {
+        app.refreshMoneyLabel();
+        if (typeof onComplete === "function") onComplete();
+      },
+    });
+  };
+
+  app.playFichaFlyCelebration = function playFichaFlyCelebration(pending, onComplete) {
+    app._fichaFlyHold = null;
+    app.playCurrencyFlyCelebration({
+      pending: pending,
+      labelEl: app.fichaLabel,
+      targetEl:
+        document.querySelector(".menu-ficha-value") ||
+        document.getElementById("btnAccount"),
+      getIconHtml: app.getFichaIconHtml,
+      flyClass: "fly-coin fly-ficha",
+      iconClass: "ficha-icon ficha-icon--fly",
+      pulseClass: "ficha-pulse",
+      activeFlag: "_fichaFlyActive",
+      onComplete: function () {
+        app.refreshMoneyLabel();
+        if (typeof onComplete === "function") onComplete();
+      },
+    });
+  };
+
+  app.playPendingRewardCelebrations = function playPendingRewardCelebrations() {
+    const coinPending = app.pendingCoinFly;
+    const fichaPending = app.pendingFichaFly;
+    app.pendingCoinFly = null;
+    app.pendingFichaFly = null;
+
+    function playFichas() {
+      if (
+        fichaPending &&
+        fichaPending.amount > 0 &&
+        typeof app.playFichaFlyCelebration === "function"
+      ) {
+        app.playFichaFlyCelebration(fichaPending);
+      } else {
+        app._fichaFlyHold = null;
+        app.refreshMoneyLabel();
+      }
+    }
+
+    if (
+      coinPending &&
+      coinPending.amount > 0 &&
+      typeof app.playCoinFlyCelebration === "function"
+    ) {
+      // Mantém o placar de fichas no valor antigo até a vez delas
+      if (fichaPending && fichaPending.amount > 0) {
+        app._fichaFlyHold = fichaPending.from | 0;
+        if (app.fichaLabel) {
+          app.fichaLabel.textContent = String(app._fichaFlyHold);
+        }
+      }
+      app.playCoinFlyCelebration(coinPending, playFichas);
+    } else {
+      playFichas();
+    }
   };
 
   app.getCoinRewardsForActiveTrack = function getCoinRewardsForActiveTrack() {
@@ -329,6 +445,45 @@ export function installApp(app) {
       app.refreshMoneyLabel();
     }
     return { gained: gained, multiplier: multiplier, base: base };
+  };
+
+  app.isActiveTrackOval = function isActiveTrackOval() {
+    try {
+      const data =
+        typeof app.getActiveTrackData === "function"
+          ? app.getActiveTrackData()
+          : null;
+      return !!(data && data.features && data.features.ovalArena);
+    } catch (e) {
+      return false;
+    }
+  };
+
+  app.getFichaRewardForFirst = function getFichaRewardForFirst() {
+    return app.isActiveTrackOval()
+      ? app.FICHA_REWARD_OVAL
+      : app.FICHA_REWARD_NORMAL;
+  };
+
+  app.rewardFichasForPlace = function rewardFichasForPlace(place) {
+    if (place !== 1) return { gained: 0 };
+    const gained = app.getFichaRewardForFirst() || 0;
+    const from = app.fichas || 0;
+    if (gained > 0) {
+      app.fichas = from + gained;
+      app.saveFichas(app.fichas);
+      app.pendingFichaFly = {
+        from: from,
+        to: app.fichas,
+        amount: gained,
+      };
+      app._fichaFlyHold = from;
+      if (app.fichaLabel) app.fichaLabel.textContent = String(from);
+    } else {
+      app.pendingFichaFly = null;
+      app._fichaFlyHold = null;
+    }
+    return { gained: gained };
   };
 
   app.getCarDef = function getCarDef(carId) {
@@ -418,6 +573,7 @@ export function installApp(app) {
 
   app.refreshAccountPanel = function refreshAccountPanel(displayCoins) {
     const coinsEl = document.getElementById("accountCoinsDetail");
+    const fichasEl = document.getElementById("accountFichasDetail");
     const carsEl = document.getElementById("accountCarsDetail");
     const winsEl = document.getElementById("accountWinsDetail");
     const ticketsEl = document.getElementById("accountTicketsDetail");
@@ -427,6 +583,7 @@ export function installApp(app) {
       const shown = displayCoins != null ? displayCoins : app.coins;
       coinsEl.textContent = String(shown);
     }
+    if (fichasEl) fichasEl.textContent = String(app.fichas || 0);
     if (carsEl) {
       carsEl.textContent =
         app.loadOwnedCars().length + "/" + app.getTotalCarsCount();
@@ -488,6 +645,9 @@ export function installApp(app) {
 export function initializeEconomy(app) {
   app.COIN_REWARDS = { 1: 11, 2: 7, 3: 0 };
   app.COINS_STORAGE_KEY = "neonRush.coins";
+  app.FICHAS_STORAGE_KEY = "neonRush.fichas";
+  app.FICHA_REWARD_NORMAL = 3;
+  app.FICHA_REWARD_OVAL = 5;
   app.COIN_MULTIPLIER_KEY = "neonRush.coinMultiplierNext";
   app.COIN_MULTIPLIER_PRICE = 11;
   app.COIN_MULTIPLIER_VALUE = 3;
@@ -501,6 +661,7 @@ export function initializeEconomy(app) {
   app.OVAL_TICKETS_KEY = "neonRush.ovalTickets";
   app.OVAL_TICKET_PRICE = 20;
   app.coins = app.loadCoins();
+  app.fichas = app.loadFichas();
   app.refreshMoneyLabel();
 }
 

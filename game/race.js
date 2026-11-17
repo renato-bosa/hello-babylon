@@ -97,11 +97,9 @@ export function installScene(app, world) {
     if (typeof world.closeMissions === "function") world.closeMissions();
     if (typeof world.closeAccount === "function") world.closeAccount();
     world.syncMobileControlsVisibility();
-    const pendingFly = app.pendingCoinFly;
-    app.pendingCoinFly = null;
-    if (pendingFly && pendingFly.amount > 0 && typeof app.playCoinFlyCelebration === "function") {
+    if (typeof app.playPendingRewardCelebrations === "function") {
       requestAnimationFrame(function () {
-        app.playCoinFlyCelebration(pendingFly);
+        app.playPendingRewardCelebrations();
       });
     } else if (typeof app.refreshMoneyLabel === "function") {
       app.refreshMoneyLabel();

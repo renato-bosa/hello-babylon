@@ -149,6 +149,10 @@ export function installScene(app, world) {
         });
       }
       const reward = app.rewardCoinsForPlace(finalPlace);
+      const fichaReward =
+        typeof app.rewardFichasForPlace === "function"
+          ? app.rewardFichasForPlace(finalPlace)
+          : { gained: 0 };
       app.setProgressHud(1, "100%", "Progresso");
       app.placeLabel.textContent =
         "Posição: " + world.placeText(finalPlace) + " / " + world.getFieldSize();
@@ -172,6 +176,19 @@ export function installScene(app, world) {
         );
       } else if (!didWin) {
         lines.push("Sem moedas desta vez.");
+      }
+      if (fichaReward.gained > 0) {
+        const fichaIcon =
+          typeof app.getFichaIconHtml === "function"
+            ? app.getFichaIconHtml("ficha-icon ficha-icon--inline")
+            : "";
+        lines.push(
+          '<span class="ficha-reward">' +
+            fichaIcon +
+            "+" +
+            fichaReward.gained +
+            " fichas!</span>"
+        );
       }
       const touchHint =
         typeof window.isNeonRushTouchDevice === "function" &&

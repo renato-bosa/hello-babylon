@@ -307,28 +307,46 @@ body {
   outline: none;
 }
 
-.menu-money-value {
+.menu-money-value,
+.menu-ficha-value {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   font-size: 14px;
   font-weight: 800;
   letter-spacing: 1px;
+}
+
+.menu-money-value {
   color: #fff8d6;
   text-shadow: 0 0 8px rgba(255, 210, 74, 0.45);
 }
 
-.menu-money-value #moneyLabel {
+.menu-ficha-value {
+  color: #ffc7c4;
+  text-shadow: 0 0 8px rgba(229, 57, 53, 0.45);
+}
+
+.menu-money-value #moneyLabel,
+.menu-ficha-value #fichaLabel {
   font: inherit;
   color: inherit;
   text-shadow: inherit;
 }
 
-.coin-icon {
+.coin-icon,
+.ficha-icon {
   width: 16px;
   height: 16px;
   flex-shrink: 0;
+}
+
+.coin-icon {
   filter: drop-shadow(0 0 4px rgba(255, 210, 74, 0.55));
+}
+
+.ficha-icon {
+  filter: drop-shadow(0 0 4px rgba(229, 57, 53, 0.55));
 }
 
 .menu-account-row {
@@ -1629,16 +1647,25 @@ body {
   display: block;
 }
 
-#rankingHint .coin-reward {
+#rankingHint .coin-reward,
+#rankingHint .ficha-reward {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #ffe79a;
   font-weight: 700;
   white-space: nowrap;
 }
 
-#rankingHint .coin-icon--inline {
+#rankingHint .coin-reward {
+  color: #ffe79a;
+}
+
+#rankingHint .ficha-reward {
+  color: #ffb0ac;
+}
+
+#rankingHint .coin-icon--inline,
+#rankingHint .ficha-icon--inline {
   width: 14px;
   height: 14px;
   vertical-align: -2px;
@@ -1666,8 +1693,14 @@ body {
   filter: drop-shadow(0 0 8px rgba(255, 210, 74, 0.75));
 }
 
-.menu-account.coin-pulse {
+.menu-account.coin-pulse,
+.menu-money-value.coin-pulse {
   animation: coinHudPulse 0.45s ease-out;
+}
+
+.menu-account.ficha-pulse,
+.menu-ficha-value.ficha-pulse {
+  animation: fichaHudPulse 0.45s ease-out;
 }
 
 @keyframes coinHudPulse {
@@ -1683,6 +1716,27 @@ body {
     transform: scale(1);
     box-shadow: 0 0 14px rgba(255, 210, 74, 0.25);
   }
+}
+
+@keyframes fichaHudPulse {
+  0% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(229, 57, 53, 0.35));
+  }
+  40% {
+    transform: scale(1.12);
+    filter: drop-shadow(0 0 10px rgba(229, 57, 53, 0.85));
+  }
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 4px rgba(229, 57, 53, 0.35));
+  }
+}
+
+.fly-ficha .ficha-icon--fly {
+  width: 28px;
+  height: 28px;
+  filter: drop-shadow(0 0 8px rgba(229, 57, 53, 0.8));
 }
 
 #countdownOverlay {

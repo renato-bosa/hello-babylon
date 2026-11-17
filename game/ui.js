@@ -51,6 +51,7 @@ export function initializeInterface(app) {
   app.countdownOverlay = document.getElementById("countdownOverlay");
   app.countdownNumber = document.getElementById("countdownNumber");
   app.moneyLabel = document.getElementById("moneyLabel");
+  app.fichaLabel = document.getElementById("fichaLabel");
   app.debugFps = document.getElementById("debugFps");
   app.debugPerfBtn = document.getElementById("debugPerfBtn");
   app.debugPerfReport = document.getElementById("debugPerfReport");
