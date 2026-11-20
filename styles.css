@@ -485,6 +485,91 @@ body {
   width: min(200px, 42vw);
 }
 
+#btnMultiplayer {
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid #00e5ff;
+  border-radius: 12px;
+  background: rgba(8, 2, 24, 0.85);
+  color: #b8f3ff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#mpDialog {
+  box-sizing: border-box;
+  width: min(560px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  overflow-y: auto;
+  padding: 20px;
+  border: 2px solid #00e5ff;
+  border-radius: 16px;
+  background: #100820;
+  color: #e8faff;
+  touch-action: pan-y;
+}
+
+#mpDialog::backdrop { background: rgba(0, 0, 0, 0.8); }
+#mpDialog h2 { margin: 0; font-size: 20px; }
+#mpDialog p, #mpDialog li { font-size: 13px; line-height: 1.5; }
+#mpDialog label { display: grid; gap: 5px; font-size: 13px; }
+#mpDialog input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid #567;
+  border-radius: 8px;
+  padding: 8px;
+  background: #080418;
+  color: white;
+  font: inherit;
+  font-size: 16px;
+}
+#mpDialog button, #mpLeaveRace {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #00e5ff;
+  border-radius: 8px;
+  background: #152035;
+  color: #e8faff;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+#mpDialog button:disabled { opacity: 0.45; cursor: default; }
+.mp-header, .mp-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.mp-join { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; margin-top: 16px; }
+#mpRoomCode { letter-spacing: 2px; overflow-wrap: anywhere; }
+#mpPlayers { padding-left: 20px; overflow-wrap: anywhere; }
+#mpStatus { color: #9fe9ff; margin-bottom: 0; }
+#mpLeaveRace { position: fixed; right: max(12px, env(safe-area-inset-right)); top: 75px; z-index: 50; }
+.mp-racing #rankingPanel {
+  box-sizing: border-box;
+  width: min(440px, calc(100vw - 24px));
+  min-width: 0;
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
+  pointer-events: auto;
+  touch-action: pan-y;
+}
+.mp-racing .ranking-row > span { overflow-wrap: anywhere; }
+.mp-finished #rankingPanel.centered {
+  top: 12px;
+  right: 50%;
+  transform: translateX(50%);
+  min-width: 0;
+  max-height: calc(100dvh - 80px);
+  transition: none;
+}
+.mp-finished #mpLeaveRace { top: auto; bottom: max(12px, env(safe-area-inset-bottom)); }
+html:has(#mpDialog[open]), body:has(#mpDialog[open]) { touch-action: pan-y; }
+@media (orientation: landscape) and (max-height: 500px) {
+  #mpDialog { padding: 12px; }
+  #mpDialog p { margin-block: 8px; }
+}
+
 .play-btn {
   appearance: none;
   border: 3px solid #39ff9f;

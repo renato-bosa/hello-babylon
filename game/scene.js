@@ -17,6 +17,7 @@ import { installScene as installRace, bindRaceControls } from "./race.js";
 import { installScene as installAi } from "./ai.js";
 import { installScene as installResults } from "./results.js";
 import { startRaceLoop } from "./loop.js";
+import { initializeMultiplayer } from "./multiplayer.js";
 
 export function createScene(app) {
   // Estado da cena: pista, pilotos, câmeras e corrida.
@@ -50,5 +51,6 @@ export function createScene(app) {
   startRaceLoop(app, world);
   bindTrackSwitch(app, world);
   initializeBotBenchmark(app, world);
+  initializeMultiplayer(app, world);
   return world.scene;
 }

@@ -27,10 +27,17 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v5
 
+      - name: Prepare static game
+        run: |
+          mkdir -p _site
+          cp index.html styles.css game.js audio.js mobile-controls.js multiplayer-config.js _site/
+          cp -R game cars tracks vendor _site/
+          touch _site/.nojekyll
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: _site
 
       - name: Deploy to GitHub Pages
         id: deployment

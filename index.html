@@ -24,6 +24,7 @@
     <script src="cars/catalog.js"></script>
     <script src="cars/models.js"></script>
     <script src="audio.js"></script>
+    <script src="multiplayer-config.js"></script>
   </head>
   <body>
     <div id="mainMenu" class="show">
@@ -98,11 +99,39 @@
           </button>
         </div>
         <button type="button" class="play-btn" id="btnStartRace">JOGAR</button>
+        <button type="button" id="btnMultiplayer">MULTIPLAYER</button>
         <p id="equippedCarLabel" class="menu-hint"></p>
         <button type="button" id="debugPerfBtn">Teste FPS (diagnóstico)</button>
         <button type="button" id="debugBotBenchBtn">Teste Bots (4× pista)</button>
       </div>
     </div>
+    <dialog id="mpDialog" aria-labelledby="mpTitle">
+      <div class="mp-header">
+        <h2 id="mpTitle">MULTIPLAYER</h2>
+        <button type="button" id="mpClose">Voltar ao menu</button>
+      </div>
+      <p class="mp-note">Sala privada · 2 a 4 jogadores · Corrida amistosa, sem recompensas ou consumo de itens.</p>
+      <div id="mpConnect">
+        <label>Seu nome <input id="mpName" maxlength="20" autocomplete="nickname" /></label>
+        <p id="mpTrack"></p>
+        <button type="button" id="mpCreate">Criar sala nesta pista</button>
+        <div class="mp-join">
+          <label>Código da sala <input id="mpCode" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" /></label>
+          <button type="button" id="mpJoin">Entrar</button>
+        </div>
+      </div>
+      <div id="mpLobby" hidden>
+        <p>Sala <strong id="mpRoomCode"></strong> <button type="button" id="mpCopy">Copiar código</button></p>
+        <p id="mpLobbyTrack"></p>
+        <ul id="mpPlayers"></ul>
+        <div class="mp-actions">
+          <button type="button" id="mpReady">Pronto</button>
+          <button type="button" id="mpStart" disabled>Iniciar corrida</button>
+        </div>
+      </div>
+      <p id="mpStatus" role="status" aria-live="polite"></p>
+    </dialog>
+    <button type="button" id="mpLeaveRace" hidden>Sair da corrida</button>
     <div id="garagePanel" aria-hidden="true">
       <button type="button" class="garage-nav prev" id="btnGaragePrev" aria-label="Carro anterior">‹</button>
       <button type="button" class="garage-nav next" id="btnGarageNext" aria-label="Próximo carro">›</button>

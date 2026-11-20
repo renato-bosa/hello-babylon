@@ -27,6 +27,8 @@ o carregamento de módulos pelo navegador não é compatível com abrir via `fil
 | `results.js` | Classificação, conclusão e recompensas |
 | `diagnostics.js` | Medições de FPS, benchmark de bots e exportação CSV |
 | `loop.js` | Atualização por quadro e renderização |
+| `missions.js` | Missões, disponibilidade e resgate de recompensas |
+| `multiplayer.js` | Lobby privado, conexão, apresentação da corrida online e retorno ao solo |
 
 Os sistemas recebem dois contextos explícitos:
 
@@ -42,3 +44,7 @@ Referências mutáveis, como `world.track` e `world.player`, devem ser consultad
 no momento do uso: guardar uma cópia durante o registro pode ficar desatualizado
 depois de trocar de pista ou carro. Babylon, os catálogos, os modelos dos carros,
 o áudio e os controles de toque continuam sendo carregados pelo HTML.
+
+O modo online usa um servidor separado. Veja `../server/README.md` para executar,
+testar e publicar no Render. O servidor reutiliza `physics.js`, `track-path.js` e
+as funções de posicionamento de `race.js`, sem criar uma cena gráfica.

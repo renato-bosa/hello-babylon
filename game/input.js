@@ -71,6 +71,7 @@ export function installScene(app, world) {
   };
 
   world.handleVirtualMenuActions = function handleVirtualMenuActions() {
+    if (world.multiplayer?.open) return;
     const leftPressed = world.pollVirtualEdge("left");
     const rightPressed = world.pollVirtualEdge("right");
 
@@ -126,6 +127,7 @@ export function bindDriveControls(app) {
     right: false,
   };
   window.addEventListener("keydown", (e) => {
+    if (document.getElementById("mpDialog")?.open) return;
     if (e.code === "ArrowUp" || e.code === "KeyW") app.keys.up = true;
     if (e.code === "ArrowDown" || e.code === "KeyS") app.keys.down = true;
     if (e.code === "ArrowLeft" || e.code === "KeyA") app.keys.left = true;

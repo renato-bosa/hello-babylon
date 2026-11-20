@@ -1,0 +1,3 @@
+allowBuilds:
+  babylonjs: false
+  msgpackr-extract: false

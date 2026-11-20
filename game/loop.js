@@ -19,6 +19,10 @@ export function startRenderLoop(app) {
 export function startRaceLoop(app, world) {
   world.scene.onBeforeRenderObservable.add(() => {
     const dt = app.engine.getDeltaTime() / 1000;
+    if (world.multiplayer?.racing) {
+      world.multiplayer.update(dt);
+      return;
+    }
     world.handleVirtualMenuActions();
 
     // Hub: carro/item no centro girando + câmera orbitando

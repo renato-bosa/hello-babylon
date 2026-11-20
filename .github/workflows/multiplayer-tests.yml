@@ -1,0 +1,26 @@
+name: Multiplayer and solo regression
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.16.0
+      - run: npx --yes pnpm@11.25.0 install --frozen-lockfile
+      - run: node --test server/test/*.test.js
+      - name: Solo regressions
+        env:
+          BABYLON_SOURCE: babylonjs
+        run: |
+          node tools/missions_physics_check.cjs
+          node tools/oval_collision_check.cjs

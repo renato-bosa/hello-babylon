@@ -118,6 +118,7 @@ export function installScene(app, world) {
   };
 
   world.startRaceFromMenu = function startRaceFromMenu() {
+    if (world.multiplayer?.open || world.multiplayer?.racing) return;
     if (typeof world.closeMissions === "function") world.closeMissions();
     const ticketCost =
       typeof app.getTrackTicketCost === "function"
@@ -231,6 +232,7 @@ export function bindRaceControls(app, world) {
       world.buyShopOffer();
     });
   window.addEventListener("keydown", (e) => {
+    if (world.multiplayer?.open || world.multiplayer?.racing) return;
     if (
       !app.botBench.active &&
       (e.code === "Enter" || e.code === "NumpadEnter" || e.code === "Space")

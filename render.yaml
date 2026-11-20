@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: neon-rush-multiplayer
+    runtime: node
+    plan: free
+    region: virginia
+    buildCommand: npx --yes pnpm@11.25.0 install --frozen-lockfile
+    startCommand: node server/index.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.16.0
