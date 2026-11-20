@@ -1,6 +1,7 @@
 // Public/private unranked races. The solo loop and economy never run in this mode.
 import { NETWORK_PROTOCOL } from "./network-physics.js";
 import { LocalPrediction, RemoteMotion, updateNetworkCamera } from "./network-motion.js";
+import { NetworkEffects } from "./network-effects.js";
 const PROTOCOL = NETWORK_PROTOCOL;
 let sdkPromise;
 
@@ -285,10 +286,14 @@ export function initializeMultiplayer(app, world) {
       return;
     }
     if (!mp.racing) begin(snapshot);
+    const listenerState = snapshot.players.find(state => state.id === mp.room.sessionId);
     for (const state of snapshot.players) {
       const racer = state.id === mp.room.sessionId ? world.player : mp.remotes.get(state.id);
       if (!racer) continue;
       const justFinished = !racer.finished && state.finished;
+      racer.networkEffects.receive(racer.netState, state,
+        Math.hypot(...state.position.map((value, index) => value - listenerState.position[index])),
+        app.PHYSICS.maxSpeed);
       Object.assign(racer, {
         speed: state.speed, progress: state.progress, lapsCompleted: state.laps,
         finished: state.finished, finishTime: state.finishTime, dnf: state.dnf,
@@ -334,12 +339,17 @@ export function initializeMultiplayer(app, world) {
     app.hud.classList.add("show");
     app.setCanvasInteractive(true);
     world.rivals.forEach(r => r.mesh.setEnabled(false));
+    let remoteAudioIndex = 0;
     world.racers = snapshot.players.map(state => {
       const own = state.id === mp.room.sessionId;
       const racer = own ? world.player : world.makeRacer(state.id, state.name, state.carId, false, null);
       if (!own) mp.remotes.set(state.id, racer);
       racer.name = own ? "Você" : state.name;
       racer.finished = false;
+      racer.networkCollisionTime = 0;
+      // Reuse the existing voices instead of allocating audio nodes per room.
+      const engineId = own ? "player" : ["rivalA", "rivalB", "rivalC"][remoteAudioIndex++];
+      racer.networkEffects = new NetworkEffects(GameAudio, engineId, own);
       racer.netState = state;
       if (own) mp.prediction = new LocalPrediction(world.track.data, state);
       else racer.motion = new RemoteMotion();
@@ -413,6 +423,12 @@ export function initializeMultiplayer(app, world) {
       // Keep the visual blink continuous between snapshots and replays.
       racer.networkCollisionTime = hittingWall ? (racer.networkCollisionTime || 0) + dt : 0;
       world.setRacerCollisionFlash(racer, hittingWall && Math.sin(racer.networkCollisionTime * Math.PI * 16) > 0);
+      racer.networkEffects.update(physics, {
+        dt, enabled: snapshot.phase === "racing" && silentFor < 500 && !document.hidden && !racer.dnf,
+        maxSpeed: app.PHYSICS.maxSpeed,
+        playerDistance: BABYLON.Vector3.Distance(racer.mesh.position, world.player.mesh.position),
+        listenerDistance: BABYLON.Vector3.Distance(racer.mesh.position, mp.cameraTarget.mesh.position),
+      });
     }
     if (world.player.finished) {
       mp.finishAnchor ||= { position: world.player.mesh.position.clone(), rotation: world.player.mesh.rotation.clone() };
@@ -436,7 +452,6 @@ export function initializeMultiplayer(app, world) {
     app.setProgressHud(world.player.progress || 0, `${Math.round((world.player.progress || 0) * 100)}%`,
       world.player.finished ? "Chegou! Aguardando jogadores" : world.track.totalLaps > 1
         ? `Volta ${Math.min(world.track.totalLaps, world.player.lapsCompleted + 1)}/${world.track.totalLaps}` : "Progresso");
-    GameAudio.setEngineSpeed("player", shownSpeed, app.PHYSICS.maxSpeed);
   };
 
   el("btnMultiplayer").addEventListener("click", () => open());
