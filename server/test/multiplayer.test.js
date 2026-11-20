@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Client } from "@colyseus/sdk";
 import { matchMaker } from "@colyseus/core";
+import { NETWORK_PROTOCOL as PROTOCOL } from "../../game/network-physics.js";
 import { startServer } from "../index.js";
 import { createSimulation, TRACK_IDS } from "../simulation.js";
 
@@ -44,7 +45,7 @@ test("real Colyseus clients: private lobby, 2–4 players, authority, abandonmen
   const address = server.transport.server.address();
   const url = `http://127.0.0.1:${address.port}`;
   const client = new Client(url);
-  const options = { protocol: 1, trackId: "neon-circuit-1", name: "Piloto", carId: "starter" };
+  const options = { protocol: PROTOCOL, trackId: "neon-circuit-1", name: "Piloto", carId: "starter" };
   const joined = [];
   async function watch(promise) {
     const room = await promise;
@@ -56,7 +57,7 @@ test("real Colyseus clients: private lobby, 2–4 players, authority, abandonmen
     return room;
   }
   try {
-    assert.equal((await (await fetch(url + "/health")).json()).protocol, 1);
+    assert.equal((await (await fetch(url + "/health")).json()).protocol, PROTOCOL);
     await assert.rejects(client.create("private_race", { ...options, protocol: 999 }));
     await assert.rejects(client.create("private_race", { ...options, trackId: "unknown" }));
     const host = await watch(client.create("private_race", options));
@@ -90,7 +91,8 @@ test("real Colyseus clients: private lobby, 2–4 players, authority, abandonmen
     await assert.rejects(client.joinById(host.roomId, options));
     await until(() => host.latest.phase === "racing");
     const start = host.latest.players.find(p => p.id === host.sessionId).position;
-    const timer = setInterval(() => host.send("input", { up: true, position: [9999, 0, 9999], finished: true }), 40);
+    let seq = 0;
+    const timer = setInterval(() => host.send("input", [1, 2].map(() => ({ seq: ++seq, up: true, position: [9999, 0, 9999], finished: true }))), 1000 / 30);
     await delay(600);
     clearInterval(timer);
     const moved = host.latest.players.find(p => p.id === host.sessionId);

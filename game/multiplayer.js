@@ -1,5 +1,7 @@
 // Public/private unranked races. The solo loop and economy never run in this mode.
-const PROTOCOL = 1;
+import { NETWORK_PROTOCOL } from "./network-physics.js";
+import { LocalPrediction, RemoteMotion, updateNetworkCamera } from "./network-motion.js";
+const PROTOCOL = NETWORK_PROTOCOL;
 let sdkPromise;
 
 function loadSdk() {
@@ -20,7 +22,7 @@ export function initializeMultiplayer(app, world) {
   const status = el("mpStatus");
   const mp = world.multiplayer = {
     open: false, racing: false, room: null, snapshot: null,
-    remotes: new Map(), operation: 0, lastReceive: 0, sendElapsed: 0,
+    remotes: new Map(), operation: 0, lastReceive: 0,
   };
   let savedTrack = null;
   let prepared = false;
@@ -132,6 +134,8 @@ export function initializeMultiplayer(app, world) {
     mp.racing = false;
     document.body.classList.remove("mp-racing", "mp-finished");
     mp.snapshot = null;
+    mp.prediction = null;
+    mp.cameraTarget = null;
     busy = false;
     for (const racer of mp.remotes.values()) racer.mesh.dispose();
     mp.remotes.clear();
@@ -290,11 +294,18 @@ export function initializeMultiplayer(app, world) {
         finished: state.finished, finishTime: state.finishTime, dnf: state.dnf,
       });
       racer.netState = state;
+      if (racer.isPlayer) mp.prediction.reconcile(state, performance.now());
+      else racer.motion.push(snapshot.raceTime, state);
       racer.mesh.setEnabled(!state.dnf);
       if (justFinished) GameAudio.playFinish(racer.isPlayer);
     }
+    const wasOver = world.raceOver;
     world.raceTime = snapshot.raceTime;
     world.raceOver = snapshot.phase === "finished";
+    if (world.raceOver && !wasOver) {
+      const target = mp.cameraTarget.mesh;
+      mp.finishAnchor = { position: target.position.clone(), rotation: target.rotation.clone() };
+    }
     if (world.player.finished || world.raceOver) drawRanking(snapshot);
     if (world.raceOver) {
       document.body.classList.add("mp-finished");
@@ -311,7 +322,6 @@ export function initializeMultiplayer(app, world) {
   function begin(snapshot) {
     mp.racing = true;
     document.body.classList.add("mp-racing");
-    mp.sendElapsed = 0;
     lastCountdown = "";
     closeDialog();
     GameAudio.unlock();
@@ -331,11 +341,16 @@ export function initializeMultiplayer(app, world) {
       racer.name = own ? "Você" : state.name;
       racer.finished = false;
       racer.netState = state;
+      if (own) mp.prediction = new LocalPrediction(world.track.data, state);
+      else racer.motion = new RemoteMotion();
       racer.mesh.position.copyFromFloats(...state.position);
       racer.mesh.rotation.copyFromFloats(...state.rotation);
       return racer;
     });
     world.unlockCameraFollow();
+    mp.cameraTarget = world.player;
+    mp.finishAnchor = null;
+    updateNetworkCamera(world.camera, world.player.mesh, 0, true);
     world.scene.activeCamera = world.camera;
     app.rankingPanel.classList.remove("show", "centered", "racing");
     app.rankingHint.classList.remove("show");
@@ -387,41 +402,36 @@ export function initializeMultiplayer(app, world) {
       GameAudio.playCountdownBeep(!countdown);
       lastCountdown = countdown;
     }
-    mp.sendElapsed += dt;
-    if (mp.sendElapsed >= 1 / 30 && snapshot.phase === "racing") {
-      mp.sendElapsed = 0;
-      const input = document.hidden ? {} : app.mergeDriveInput(app.keys);
-      mp.room.send("input", input);
-    }
-    // Smooth authoritative snapshots. No client can report a position or finish.
-    const alpha = 1 - Math.exp(-Math.min(dt, 0.1) * 25);
+    const input = document.hidden ? {} : app.mergeDriveInput(app.keys);
+    const commands = mp.prediction.advance(dt, input, performance.now(), snapshot.phase === "racing" && silentFor < 500 && !document.hidden && !world.player.finished);
+    if (commands.length) mp.room.send("input", commands.map(({ sentAt, ...command }) => command));
     for (const racer of world.racers) {
-      const state = racer.netState;
-      if (!state?.position) continue;
-      const target = BABYLON.Vector3.FromArray(state.position);
-      racer.mesh.position.copyFrom(BABYLON.Vector3.Lerp(racer.mesh.position, target, alpha));
-      for (const [index, axis] of ["x", "y", "z"].entries()) {
-        racer.mesh.rotation[axis] += app.normalizeAngle(state.rotation[index] - racer.mesh.rotation[axis]) * alpha;
-      }
+      if (racer.isPlayer) mp.prediction.render(racer.mesh, dt);
+      else racer.motion.render(racer.mesh, dt);
     }
     if (world.player.finished) {
-      if (world.raceTime - world.player.finishTime < 5 || world.raceOver) world.lockCameraAtFinish();
-      else {
+      mp.finishAnchor ||= { position: world.player.mesh.position.clone(), rotation: world.player.mesh.rotation.clone() };
+      if (world.raceTime - world.player.finishTime >= 5 && !world.raceOver &&
+          (mp.cameraTarget.isPlayer || mp.cameraTarget.finished || mp.cameraTarget.dnf)) {
         const next = world.racers.filter(r => !r.isPlayer && !r.finished && !r.dnf).sort((a, b) => b.progress - a.progress)[0];
-        if (next) { world.unlockCameraFollow(); world.camera.lockedTarget = next.mesh; }
+        if (next) mp.cameraTarget = next;
       }
     }
+    const cameraMesh = world.player.finished && (world.raceTime - world.player.finishTime < 5 || world.raceOver)
+      ? mp.finishAnchor : mp.cameraTarget.mesh;
+    updateNetworkCamera(world.camera, cameraMesh, dt);
     const place = 1 + world.racers.filter(r => !r.isPlayer && !r.dnf && (
       r.finished && !world.player.finished ||
       r.finished && world.player.finished && r.finishTime < world.player.finishTime ||
       !r.finished && !world.player.finished && r.progress > world.player.progress
     )).length;
     app.placeLabel.textContent = silentFor > 2000 ? "Aguardando conexão…" : `Posição: ${place}º / ${world.racers.length}`;
-    app.setSpeedHud(world.player.speed, app.PHYSICS.maxSpeed);
+    const shownSpeed = mp.prediction.racer.speed;
+    app.setSpeedHud(shownSpeed, app.PHYSICS.maxSpeed);
     app.setProgressHud(world.player.progress || 0, `${Math.round((world.player.progress || 0) * 100)}%`,
       world.player.finished ? "Chegou! Aguardando jogadores" : world.track.totalLaps > 1
         ? `Volta ${Math.min(world.track.totalLaps, world.player.lapsCompleted + 1)}/${world.track.totalLaps}` : "Progresso");
-    GameAudio.setEngineSpeed("player", world.player.speed, app.PHYSICS.maxSpeed);
+    GameAudio.setEngineSpeed("player", shownSpeed, app.PHYSICS.maxSpeed);
   };
 
   el("btnMultiplayer").addEventListener("click", () => open());
@@ -445,7 +455,6 @@ export function initializeMultiplayer(app, world) {
   window.addEventListener("blur", () => {
     if (mp.racing) {
       app.keys = { up: false, down: false, left: false, right: false };
-      mp.room?.send("input", {});
     }
   });
 }

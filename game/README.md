@@ -28,7 +28,9 @@ o carregamento de módulos pelo navegador não é compatível com abrir via `fil
 | `diagnostics.js` | Medições de FPS, benchmark de bots e exportação CSV |
 | `loop.js` | Atualização por quadro e renderização |
 | `missions.js` | Missões, disponibilidade e resgate de recompensas |
-| `multiplayer.js` | Lobby privado, conexão, apresentação da corrida online e retorno ao solo |
+| `multiplayer.js` | Salas públicas/privadas, conexão, apresentação da corrida online e retorno ao solo |
+| `network-physics.js` | Simulação sem renderização compartilhada pelo servidor e previsão local |
+| `network-motion.js` | Previsão, reconciliação, interpolação dos adversários e câmera online |
 
 Os sistemas recebem dois contextos explícitos:
 

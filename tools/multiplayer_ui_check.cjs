@@ -28,6 +28,7 @@ fs.mkdirSync(out, { recursive: true });
   await new Promise(resolve => web.listen(0, '127.0.0.1', resolve));
   const browser = await chromium.launch({ headless: true, ...(process.env.CHROME_PATH ? {executablePath: process.env.CHROME_PATH} : {}) });
   const errors = [];
+  let delayedConnections = 0;
   const pages = [];
   const profile = page => page.evaluate(() => Object.fromEntries(['coins','fichas','wins','ovalTickets','coinMultiplierNext','calibratedTireNext','activeTrack'].map(k => [k,localStorage.getItem('neonRush.'+k)])));
   try {
@@ -39,6 +40,22 @@ fs.mkdirSync(out, { recursive: true });
         for (const [key,value] of Object.entries({coins:999,fichas:17,wins:4,ovalTickets:3,coinMultiplierNext:3,calibratedTireNext:1,activeTrack:index === 1 ? 'neon-oval':'neon-circuit-1'})) localStorage.setItem('neonRush.'+key,String(value));
       }, index);
       const page = await context.newPage();
+      const latency = Number(process.env.NETWORK_LATENCY_MS || 0);
+      if (latency) {
+        await page.routeWebSocket(/^ws:\/\/127\.0\.0\.1:/, socket => {
+          delayedConnections++;
+          const remote = socket.connectToServer();
+          function delayed(send) {
+            let due = 0, sequence = 0;
+            return message => {
+              due = Math.max(due + 1, Date.now() + latency + ((sequence++ % 3) * 10));
+              setTimeout(() => { try { send(message); } catch {} }, due - Date.now());
+            };
+          }
+          socket.onMessage(delayed(message => remote.send(message)));
+          remote.onMessage(delayed(message => socket.send(message)));
+        });
+      }
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(`http://127.0.0.1:${web.address().port}/`);
       await page.waitForFunction(() => window.__game);
@@ -69,9 +86,27 @@ fs.mkdirSync(out, { recursive: true });
     for (const [index,page] of pages.entries()) await page.screenshot({path:path.join(out,`lobby-${index}.png`)});
     await host.locator('#mpStart').click();
     await Promise.all(pages.map(page => page.waitForFunction(() => window.__game.world.multiplayer.snapshot?.phase === 'racing')));
-    await host.keyboard.down('ArrowUp');
+    await host.evaluate(() => {
+      const {world,app} = window.__game;
+      window.__response = {start:performance.now(), local:null, server:null};
+      app.keys.up = true;
+      const observer = world.scene.onAfterRenderObservable.add(() => {
+        const metric = window.__response;
+        if (metric.local === null && world.multiplayer.prediction.racer.speed > 0) metric.local = performance.now()-metric.start;
+        if (metric.server === null && world.player.speed > 0) metric.server = performance.now()-metric.start;
+        if (metric.local !== null && metric.server !== null) world.scene.onAfterRenderObservable.remove(observer);
+      });
+    });
     await host.waitForTimeout(900);
     await host.keyboard.up('ArrowUp');
+    const response = await host.evaluate(() => window.__response);
+    console.log('Input response (ms):', JSON.stringify(response));
+    if (Number(process.env.NETWORK_LATENCY_MS || 0)) {
+      assert(delayedConnections >= 4, 'all four WebSockets must pass through the latency proxy');
+      assert(response.local !== null && response.server !== null);
+      assert(response.local < response.server, 'local controls must respond before server confirmation');
+      assert(response.server >= Number(process.env.NETWORK_LATENCY_MS) * 2, 'confirmation must include both directions of simulated latency');
+    }
     const hostId = await host.evaluate(() => window.__game.world.multiplayer.room.sessionId);
     for (const page of pages) {
       assert.equal(await page.evaluate(() => window.__game.world.racers.length), 4);

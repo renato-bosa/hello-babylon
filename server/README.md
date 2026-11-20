@@ -39,7 +39,7 @@ configure `multiplayer-config.js` com um endereço acessível por eles.
 3. Build: `npx --yes pnpm@11.25.0 install --frozen-lockfile`.
    Start: `node server/index.js`. Node: 22.16.0. Não fixe `PORT`: o Render fornece.
 4. Abra `https://SEU-SERVICO.onrender.com/health` e confirme
-   `{"ok":true,"protocol":1}`.
+   `{"ok":true,"protocol":2}`.
 5. Coloque `https://SEU-SERVICO.onrender.com` em
    `window.NEON_RUSH_MULTIPLAYER_URL`, no arquivo `multiplayer-config.js`.
    Esse endereço é público e não contém credenciais.
@@ -63,10 +63,20 @@ O workflow do Pages publica somente os arquivos do frontend.
 - Servidor autoritativo: recebe somente acelerar/frear/virar; aplica a mesma
   física e geometria do solo a 60 passos por segundo. Envia snapshots a 20 Hz.
   Posições, voltas e chegada não são aceitas do navegador.
-- O cliente envia comandos a 30 Hz e suaviza posições recebidas. Ainda **não há
-  previsão local/reconciliação**: o atraso da rede pode ser sentido na direção.
-  Medir isso em uma rede real é parte do próximo teste; não há promessa de
-  capacidade de salas simultâneas no Render Free.
+- O cliente prevê o próprio movimento com a mesma física a 60 Hz e envia lotes
+  de até 6 comandos numerados por quadro (no máximo 60 mensagens/s). O servidor
+  limita os passos ao tempo decorrido e confirma o último comando processado.
+  O cliente restaura esse estado e reaplica apenas os comandos pendentes; pequenas
+  correções são suavizadas em 120 ms. Resultados e voltas exibidos continuam sendo
+  confirmados pelo servidor, sem recompensas disparadas pela previsão.
+- Adversários são interpolados com um buffer de aproximadamente 100 ms. A câmera
+  online usa suavização baseada no tempo; a câmera e a física do solo não mudaram.
+  Atrasos longos ainda podem produzir correções: a previsão para após 500 ms sem
+  snapshots e limita o histórico a 120 comandos. Abas ocultas deixam de enviar
+  comandos; após 500 ms sem comandos o servidor desacelera o carro.
+- O protocolo agora é **2**: publique servidor e frontend juntos e recarregue os
+  navegadores. Clientes do protocolo 1 são rejeitados para evitar corridas com
+  formatos incompatíveis. Não há promessa de capacidade no Render Free.
 - Sem bots, recompensas, consumo de tickets/pneu, registro de vitórias ou avanço
   de missões online. Todos usam a velocidade padrão. A coleção e o equipamento
   locais selecionam o visual; sua propriedade não é autenticada pelo servidor.
@@ -106,6 +116,12 @@ node tools/multiplayer_ui_check.cjs
 Executa quatro navegadores, retrato/paisagem/desktop, corrida e resultados,
 proteção de apelidos como texto, retorno ao solo e preservação da economia.
 Capturas ficam em `test-results/multiplayer/` (ignorado pelo Git).
+
+Defina `NETWORK_LATENCY_MS=100` para simular 100 ms por direção, mais variação
+de entrega. O teste verifica que os quatro WebSockets passam pela simulação e
+que os controles locais respondem antes da confirmação. Os testes unitários de
+`network-motion.test.js` cobrem reconciliação nas seis pistas, limite de tempo
+do servidor, 30/60/144 FPS, interpolação e câmera.
 
 Os testes de chegada reposicionam pilotos **dentro da fixture de teste no servidor**
 perto da linha para exercitar a física; não existe esse comando no protocolo.

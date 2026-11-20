@@ -1,8 +1,9 @@
 import { Room } from "@colyseus/core";
 import { randomBytes } from "node:crypto";
 import { cars, tracks, createSimulation } from "./simulation.js";
+import { NETWORK_PROTOCOL, STEP, MAX_PENDING, capturePhysics, sanitizeInput } from "../game/network-physics.js";
 
-export const PROTOCOL = 1;
+export const PROTOCOL = NETWORK_PROTOCOL;
 const idleInput = () => ({ up: false, down: false, left: false, right: false });
 
 export class RaceRoom extends Room {
@@ -38,8 +39,13 @@ export class RaceRoom extends Room {
     });
     this.onMessage("input", (client, input) => {
       const player = this.players.get(client.sessionId);
-      if (!player || this.phase !== "racing" || !input || typeof input !== "object") return;
-      player.input = Object.fromEntries(["up", "down", "left", "right"].map(key => [key, input[key] === true]));
+      if (!player || this.phase !== "racing" || !Array.isArray(input) || input.length > 6) return;
+      for (const command of input) {
+        if (!command || !Number.isSafeInteger(command.seq) || command.seq <= player.received || command.seq > player.received + MAX_PENDING) continue;
+        if (player.queue.length >= MAX_PENDING) break;
+        player.queue.push({ seq: command.seq, input: sanitizeInput(command) });
+        player.received = command.seq;
+      }
       player.inputAt = Date.now();
     });
     // Clock owns these timers and clears them when the room is disposed.
@@ -60,7 +66,7 @@ export class RaceRoom extends Room {
     this.players.set(client.sessionId, {
       id: client.sessionId, name: name || "Piloto", ready: false, connected: true,
       carId: Object.hasOwn(cars, options.carId) ? options.carId : "starter",
-      input: idleInput(), inputAt: 0,
+      queue: [], received: 0, ack: 0, credit: 0, inputAt: 0,
     });
     this.hostId ||= client.sessionId;
     this.publish();
@@ -74,7 +80,7 @@ export class RaceRoom extends Room {
       if (this.hostId === client.sessionId) this.hostId = this.players.keys().next().value || null;
     } else {
       player.connected = false;
-      player.input = idleInput();
+      player.queue.length = 0;
       const racer = this.sim.world.racers.find(r => r.id === client.sessionId);
       if (!racer.finished) racer.dnf = true;
       this.checkFinished();
@@ -96,8 +102,22 @@ export class RaceRoom extends Room {
       for (const racer of this.sim.world.racers) {
         if (racer.dnf) continue;
         const player = this.players.get(racer.id);
-        const input = Date.now() - player.inputAt < 500 ? player.input : idleInput();
-        this.sim.world.applyDrive(racer, input, 1 / 60);
+        // Commands always represent ONE fixed step. The server grants time,
+        // never the client: flooding commands cannot accelerate the simulation.
+        player.credit = Math.min(6 * STEP, player.credit + STEP);
+        if (Date.now() - player.inputAt >= 500) {
+          player.queue.length = 0;
+          player.ack = player.received;
+          this.sim.world.applyDrive(racer, idleInput(), STEP);
+          player.credit = 0;
+        } else {
+          while (player.queue.length && player.credit + 1e-9 >= STEP) {
+            const command = player.queue.shift();
+            this.sim.world.applyDrive(racer, command.input, STEP);
+            player.ack = command.seq;
+            player.credit -= STEP;
+          }
+        }
       }
       this.accumulator -= 1 / 60;
       this.tick++;
@@ -129,6 +149,7 @@ export class RaceRoom extends Room {
             position: racer.mesh.position.asArray(), rotation: racer.mesh.rotation.asArray(),
             speed: racer.speed, progress: racer.progress, laps: racer.lapsCompleted,
             finished: racer.finished, finishTime: racer.finishTime, dnf: !!racer.dnf,
+            ack: player.ack, physics: capturePhysics(racer),
           } : {}),
         };
       }),
