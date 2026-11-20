@@ -408,6 +408,11 @@ export function initializeMultiplayer(app, world) {
     for (const racer of world.racers) {
       if (racer.isPlayer) mp.prediction.render(racer.mesh, dt);
       else racer.motion.render(racer.mesh, dt);
+      const physics = racer.isPlayer ? mp.prediction.racer : racer.netState?.physics;
+      const hittingWall = !racer.dnf && !!physics?.againstWall;
+      // Keep the visual blink continuous between snapshots and replays.
+      racer.networkCollisionTime = hittingWall ? (racer.networkCollisionTime || 0) + dt : 0;
+      world.setRacerCollisionFlash(racer, hittingWall && Math.sin(racer.networkCollisionTime * Math.PI * 16) > 0);
     }
     if (world.player.finished) {
       mp.finishAnchor ||= { position: world.player.mesh.position.clone(), rotation: world.player.mesh.rotation.clone() };
