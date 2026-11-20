@@ -110,11 +110,25 @@
         <h2 id="mpTitle">MULTIPLAYER</h2>
         <button type="button" id="mpClose">Voltar ao menu</button>
       </div>
-      <p class="mp-note">Sala privada · 2 a 4 jogadores · Corrida amistosa, sem recompensas ou consumo de itens.</p>
+      <p class="mp-note">2 a 4 jogadores · Corrida amistosa, sem recompensas ou consumo de itens.</p>
       <div id="mpConnect">
         <label>Seu nome <input id="mpName" maxlength="20" autocomplete="nickname" /></label>
         <p id="mpTrack"></p>
+        <label>Visibilidade da nova sala
+          <select id="mpVisibility">
+            <option value="public">Pública — aparece na lista</option>
+            <option value="private">Privada — entrada por código</option>
+          </select>
+        </label>
         <button type="button" id="mpCreate">Criar sala nesta pista</button>
+        <section aria-labelledby="mpRoomsTitle" class="mp-public-rooms">
+          <div class="mp-header">
+            <h3 id="mpRoomsTitle">Salas públicas</h3>
+            <button type="button" id="mpRefresh">Atualizar</button>
+          </div>
+          <p id="mpRoomsStatus" role="status"></p>
+          <ul id="mpRooms"></ul>
+        </section>
         <div class="mp-join">
           <label>Código da sala <input id="mpCode" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" /></label>
           <button type="button" id="mpJoin">Entrar</button>

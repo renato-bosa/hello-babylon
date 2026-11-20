@@ -1,4 +1,4 @@
-// Private, unranked races. The solo loop and economy never run in this mode.
+// Public/private unranked races. The solo loop and economy never run in this mode.
 const PROTOCOL = 1;
 let sdkPromise;
 
@@ -26,6 +26,9 @@ export function initializeMultiplayer(app, world) {
   let prepared = false;
   let lastCountdown = "";
   let busy = false;
+  let listTimer;
+  let listAbort;
+  let listing = false;
   const originalMenu = world.showMainMenu;
 
   function endpoint() {
@@ -40,6 +43,9 @@ export function initializeMultiplayer(app, world) {
     el("mpLobby").hidden = !mp.room;
     el("mpCreate").disabled = el("mpJoin").disabled = busy;
     el("mpName").disabled = el("mpCode").disabled = busy;
+    el("mpVisibility").disabled = busy;
+    el("mpRefresh").disabled = busy || listing;
+    el("mpRooms").querySelectorAll("button").forEach(button => { button.disabled = busy; });
     el("mpReady").disabled = !mp.snapshot?.players.some(p => p.id === mp.room?.sessionId);
   }
 
@@ -51,15 +57,68 @@ export function initializeMultiplayer(app, world) {
     world.closeAccount();
     mp.open = true;
     status.textContent = message || (endpoint()
-      ? "Crie uma sala ou entre com o código de um amigo."
+      ? "Entre em uma sala pública, crie uma sala ou use o código de um amigo."
       : "Multiplayer ainda não está disponível neste endereço.");
     el("mpTrack").textContent = "Pista: " + app.getActiveTrackData().name;
     el("mpName").value ||= localStorage.getItem("neonRush.multiplayerName") || "Piloto";
     controls();
     if (!dialog.open) dialog.showModal();
+    stopListing();
+    el("mpRooms").replaceChildren();
+    refreshRooms(true);
+    listTimer = setInterval(() => refreshRooms(), 5000);
+  }
+
+  function stopListing() {
+    clearInterval(listTimer);
+    listAbort?.abort();
+    listAbort = null;
+    listing = false;
+  }
+
+  async function refreshRooms(wakeServer = false) {
+    if (!mp.open || mp.room || busy || listing) return;
+    const label = el("mpRoomsStatus");
+    const url = endpoint();
+    if (!url) { label.textContent = "Servidor ainda não configurado."; return; }
+    const controller = listAbort = new AbortController();
+    listing = true;
+    controls();
+    try {
+      if (wakeServer) await wake(url, controller.signal, label);
+      const response = await fetch(url + "/rooms", {
+        cache: "no-store", signal: AbortSignal.any([controller.signal, AbortSignal.timeout(8000)]),
+      });
+      if (!response.ok) throw new Error("Lista indisponível");
+      const rooms = await response.json();
+      if (!Array.isArray(rooms)) throw new Error("Lista inválida");
+      if (controller !== listAbort || !mp.open || mp.room) return;
+      el("mpRooms").replaceChildren();
+      for (const room of rooms) {
+        const row = document.createElement("li");
+        const description = document.createElement("span");
+        description.textContent = `${window.NEON_RUSH_TRACKS[room.trackId]?.name || room.trackId} · ${room.players}/${room.capacity} jogadores · ${room.roomId}`;
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Entrar";
+        button.setAttribute("aria-label", `Entrar na sala ${room.roomId}`);
+        button.addEventListener("click", () => connect(false, room.roomId));
+        row.append(description, button);
+        el("mpRooms").appendChild(row);
+      }
+      label.textContent = rooms.length ? "Salas com vagas. Atualização automática a cada 5 segundos." : "Nenhuma sala pública com vagas. Você pode criar uma!";
+    } catch {
+      if (controller === listAbort && !controller.signal.aborted) {
+        el("mpRooms").replaceChildren();
+        label.textContent = "Não foi possível listar salas. Tente Atualizar; a entrada por código continua disponível.";
+      }
+    } finally {
+      if (controller === listAbort) { listing = false; controls(); }
+    }
   }
 
   function closeDialog() {
+    stopListing();
     mp.open = false;
     dialog.close();
   }
@@ -101,9 +160,9 @@ export function initializeMultiplayer(app, world) {
     else originalMenu();
   };
 
-  async function wake(url, signal) {
+  async function wake(url, signal, label = status) {
     const deadline = performance.now() + 90000;
-    status.textContent = "Conectando ao servidor… A primeira conexão pode levar cerca de um minuto.";
+    label.textContent = "Conectando ao servidor… A primeira conexão pode levar cerca de um minuto.";
     while (performance.now() < deadline) {
       signal.throwIfAborted();
       try {
@@ -124,16 +183,17 @@ export function initializeMultiplayer(app, world) {
     throw new Error("O servidor não respondeu. Tente novamente em instantes.");
   }
 
-  async function connect(create) {
+  async function connect(create, publicCode) {
     if (busy || mp.room) return;
     const url = endpoint();
     if (!url) { status.textContent = "Multiplayer ainda não está disponível neste endereço."; return; }
-    const code = el("mpCode").value.trim().toUpperCase();
+    const code = publicCode || el("mpCode").value.trim().toUpperCase();
     if (!create && !/^[A-F0-9]{10}$/.test(code)) {
       status.textContent = "Informe o código de 10 caracteres da sala.";
       return;
     }
     busy = true;
+    stopListing();
     controls();
     const operation = ++mp.operation;
     mp.abort = new AbortController();
@@ -144,7 +204,7 @@ export function initializeMultiplayer(app, world) {
       const client = new sdk.Client(url);
       const name = el("mpName").value.trim().slice(0, 20) || "Piloto";
       localStorage.setItem("neonRush.multiplayerName", name);
-      const options = { protocol: PROTOCOL, name, carId: world.equippedCarId, trackId: window.NEON_RUSH_ACTIVE_TRACK };
+      const options = { protocol: PROTOCOL, name, carId: world.equippedCarId, trackId: window.NEON_RUSH_ACTIVE_TRACK, visibility: el("mpVisibility").value };
       const room = create ? await client.create("private_race", options) : await client.joinById(code, options);
       if (operation !== mp.operation) { room.leave(); return; }
       mp.room = room;
@@ -173,7 +233,14 @@ export function initializeMultiplayer(app, world) {
         ? error.message || "Não foi possível criar a sala."
         : "Não foi possível entrar: confira o código; a sala pode estar cheia, encerrada ou já em corrida.";
     } finally {
-      if (operation === mp.operation) { busy = false; controls(); }
+      if (operation === mp.operation) {
+        busy = false;
+        controls();
+        if (!mp.room && mp.open) {
+          refreshRooms();
+          listTimer = setInterval(() => refreshRooms(), 5000);
+        }
+      }
     }
   }
 
@@ -207,7 +274,9 @@ export function initializeMultiplayer(app, world) {
       el("mpReady").textContent = me?.ready ? "Cancelar pronto" : "Pronto";
       el("mpStart").hidden = snapshot.hostId !== mp.room.sessionId;
       el("mpStart").disabled = snapshot.players.length < 2 || !snapshot.players.every(p => p.ready);
-      status.textContent = "Compartilhe o código. A corrida começa com 2 a 4 jogadores prontos.";
+      status.textContent = snapshot.visibility === "public"
+        ? "Sala pública: aparece na lista enquanto houver vagas. A corrida começa com todos prontos."
+        : "Sala privada: compartilhe o código. A corrida começa com 2 a 4 jogadores prontos.";
       controls();
       return;
     }
@@ -360,6 +429,7 @@ export function initializeMultiplayer(app, world) {
   el("mpLeaveRace").addEventListener("click", cleanup);
   dialog.addEventListener("cancel", event => { event.preventDefault(); cleanup(); });
   el("mpCreate").addEventListener("click", () => connect(true));
+  el("mpRefresh").addEventListener("click", () => refreshRooms(true));
   el("mpJoin").addEventListener("click", () => connect(false));
   el("mpReady").addEventListener("click", () => {
     const me = mp.snapshot?.players.find(p => p.id === mp.room?.sessionId);

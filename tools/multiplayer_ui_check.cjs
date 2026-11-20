@@ -54,8 +54,12 @@ fs.mkdirSync(out, { recursive: true });
         await page.waitForFunction(() => window.__game.world.multiplayer.snapshot?.players.length === 1);
       } else {
         const code = await host.locator('#mpRoomCode').textContent();
-        await page.locator('#mpCode').fill(code);
-        await page.locator('#mpJoin').click();
+        if (index === 1) {
+          await page.getByRole('button', {name:`Entrar na sala ${code}`,exact:true}).click();
+        } else {
+          await page.locator('#mpCode').fill(code);
+          await page.locator('#mpJoin').click();
+        }
         await page.waitForFunction(() => window.__game.world.multiplayer.room !== null);
       }
       await page.locator('#mpReady').click();

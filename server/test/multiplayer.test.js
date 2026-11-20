@@ -62,6 +62,13 @@ test("real Colyseus clients: private lobby, 2–4 players, authority, abandonmen
     const host = await watch(client.create("private_race", options));
     assert.match(host.roomId, /^[A-F0-9]{10}$/);
     assert.equal((await matchMaker.query({ name: "private_race", private: false })).length, 0);
+    const publicRooms = async () => {
+      const response = await fetch(url + "/rooms");
+      assert.equal(response.headers.get("access-control-allow-origin"), "*");
+      assert.equal(response.headers.get("cache-control"), "no-store");
+      return response.json();
+    };
+    assert.deepEqual(await publicRooms(), [], "private codes must not leak through discovery");
     host.send("ready", true);
     host.send("start");
     await delay(100);
@@ -115,11 +122,24 @@ test("real Colyseus clients: private lobby, 2–4 players, authority, abandonmen
     await guest.leave();
     await until(() => !matchMaker.getLocalRoomById(host.roomId));
 
-    const owner = await watch(client.create("private_race", options));
+    const owner = await watch(client.create("private_race", { ...options, visibility: "public" }));
     const replacement = await watch(client.joinById(owner.roomId, options));
+    assert.deepEqual(await publicRooms(), [{ roomId: owner.roomId, trackId: options.trackId, players: 2, capacity: 4 }]);
     await owner.leave();
     await until(() => replacement.latest.hostId === replacement.sessionId);
     assert.equal(replacement.latest.players.length, 1);
+    const extra1 = await watch(client.joinById(replacement.roomId, options));
+    const extra2 = await watch(client.joinById(replacement.roomId, options));
+    const extra3 = await watch(client.joinById(replacement.roomId, options));
+    assert.deepEqual(await publicRooms(), [], "full public room disappears");
+    await extra3.leave();
+    await until(() => replacement.latest.players.length === 3);
+    assert.equal((await publicRooms())[0].players, 3, "room reappears when a seat opens");
+    for (const room of [replacement, extra1, extra2]) room.send("ready", true);
+    await until(() => replacement.latest.players.every(p => p.ready));
+    replacement.send("start");
+    await until(() => replacement.latest.phase === "countdown");
+    assert.deepEqual(await publicRooms(), [], "started rooms disappear even with empty seats");
     await assert.rejects(client.joinById("0000000000", options));
   } finally {
     for (const room of joined) await room.leave();

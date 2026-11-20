@@ -514,7 +514,7 @@ body {
 #mpDialog h2 { margin: 0; font-size: 20px; }
 #mpDialog p, #mpDialog li { font-size: 13px; line-height: 1.5; }
 #mpDialog label { display: grid; gap: 5px; font-size: 13px; }
-#mpDialog input {
+#mpDialog input, #mpDialog select {
   box-sizing: border-box;
   width: 100%;
   min-width: 0;
@@ -543,6 +543,13 @@ body {
 .mp-join { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 10px; margin-top: 16px; }
 #mpRoomCode { letter-spacing: 2px; overflow-wrap: anywhere; }
 #mpPlayers { padding-left: 20px; overflow-wrap: anywhere; }
+.mp-public-rooms { margin-block: 16px; border-block: 1px solid #345; padding-block: 12px; }
+#mpRoomsTitle { margin: 0; font-size: 16px; }
+#mpRooms { list-style: none; padding: 0; }
+#mpRooms li { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-block: 8px; }
+#mpRooms li span { min-width: 0; overflow-wrap: anywhere; }
+#mpRooms li button { flex-shrink: 0; }
+#mpCreate { margin-top: 10px; }
 #mpStatus { color: #9fe9ff; margin-bottom: 0; }
 #mpLeaveRace { position: fixed; right: max(12px, env(safe-area-inset-right)); top: 75px; z-index: 50; }
 .mp-racing #rankingPanel {

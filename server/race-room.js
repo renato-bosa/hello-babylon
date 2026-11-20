@@ -12,7 +12,9 @@ export class RaceRoom extends Room {
     this.roomId = randomBytes(5).toString("hex").toUpperCase();
     this.maxClients = 4;
     this.maxMessagesPerSecond = 90;
-    await this.setPrivate(true);
+    this.visibility = options.visibility === "public" ? "public" : "private";
+    await this.setPrivate(this.visibility !== "public");
+    await this.setMetadata({ trackId: options.trackId, protocol: PROTOCOL });
     this.trackId = options.trackId;
     this.players = new Map();
     this.phase = "lobby";
@@ -114,7 +116,7 @@ export class RaceRoom extends Room {
 
   snapshot() {
     return {
-      protocol: PROTOCOL, roomId: this.roomId, trackId: this.trackId,
+      protocol: PROTOCOL, roomId: this.roomId, trackId: this.trackId, visibility: this.visibility,
       hostId: this.hostId, phase: this.phase, serverTime: Date.now(), startAt: this.startAt || 0,
       raceTime: this.sim?.world.raceTime || 0, tick: this.tick,
       order: this.sim?.world.finishOrder || [],

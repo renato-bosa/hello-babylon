@@ -1,9 +1,13 @@
-# Multiplayer privado — primeira versão
+# Multiplayer público e privado — primeira versão
 
 O frontend continua estático no GitHub Pages. O servidor Node.js usa Colyseus
 com WebSocket seguro (WSS na hospedagem), uma sala por corrida e 2–4 jogadores.
 As seis pistas estão disponíveis; quem cria a sala escolhe a pista no menu antes
 de abri-la. Todos confirmam **Pronto** e o anfitrião inicia a contagem.
+Ao criar, escolha **Pública** (padrão) ou **Privada**. Salas públicas com vagas
+aparecem na lista do multiplayer, atualizada a cada 5 segundos ou pelo botão
+Atualizar. Basta clicar em Entrar, sem compartilhar código. Salas cheias ou já
+iniciadas saem da lista; uma vaga liberada no lobby faz a sala reaparecer.
 
 ## Executar localmente
 
@@ -51,7 +55,9 @@ O workflow do Pages publica somente os arquivos do frontend.
 
 ## Comportamento e limites desta versão
 
-- Código privado de 10 caracteres, sem listagem pública. Quem possui o código
+- Código de 10 caracteres. Salas privadas não aparecem no endpoint `/rooms`.
+  Clientes antigos que não enviam visibilidade continuam criando salas privadas.
+  Quem possui o código
   pode entrar enquanto houver vaga e a corrida não tiver começado. Não há contas
   ou autenticação de identidade; o nome é apenas um apelido.
 - Servidor autoritativo: recebe somente acelerar/frear/virar; aplica a mesma
