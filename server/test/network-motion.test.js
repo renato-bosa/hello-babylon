@@ -99,3 +99,28 @@ test("online camera converges independently of frame rate", () => {
   }
   assert(BABYLON.Vector3.Distance(positions[0],positions[2])<1e-8);
 });
+
+test("finished players can steer while coasting; reconciliation preserves inputs and finish results", () => {
+  const sim = createSimulation("neon-circuit-1", [{ id: "local" }]);
+  const racer = sim.world.player;
+  sim.world.placeRacer(racer, sim.world.track.finishDist + 2, 0);
+  racer.finished = true;
+  racer.finishTime = 12;
+  racer.speed = 20;
+  const state = { id: "local", ack: 0, finished: true, physics: capturePhysics(racer) };
+  const predictor = new LocalPrediction(tracks["neon-circuit-1"], state);
+  const yaw = racer.mesh.rotation.y;
+  for (let i = 0; i < 6; i++) predictor.advance(STEP, { up: true, right: true }, i * STEP * 1000, true);
+  assert(predictor.racer.mesh.rotation.y > yaw, "steering still responds after finish");
+  assert(predictor.racer.speed < 20, "accelerator cannot override coasting");
+  const predicted = capturePhysics(predictor.racer);
+  predictor.reconcile(state, 100);
+  assert.deepEqual(capturePhysics(predictor.racer), predicted, "unacknowledged steering is replayed after finish");
+  assert.equal(predictor.racer.finishTime, 12);
+  assert.equal(predictor.pending.length, 6);
+  for (const command of predictor.pending) sim.world.applyDrive(racer, command, STEP);
+  assert.deepEqual(capturePhysics(racer), predicted, "server and client retain identical coasting physics");
+  predictor.reconcile({ ...state, ack: 6, physics: capturePhysics(racer) }, 120);
+  assert.equal(predictor.pending.length, 0);
+  assert.equal(predictor.racer.finishTime, 12);
+});

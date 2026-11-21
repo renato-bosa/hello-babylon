@@ -25,7 +25,7 @@ export class LocalPrediction {
     this.pending = this.pending.filter(command => command.seq > state.ack);
     restorePhysics(this.racer, state.physics);
     // Only unacknowledged inputs are replayed. Replay has no sound/UI effects.
-    if (!state.finished && !state.dnf) {
+    if (!state.dnf) {
       for (const command of this.pending) this.sim.world.applyDrive(this.racer, command, STEP);
     } else this.pending.length = 0;
     const error = position.subtract(this.racer.mesh.position);

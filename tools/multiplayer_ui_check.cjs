@@ -84,6 +84,20 @@ fs.mkdirSync(out, { recursive: true });
     await host.waitForFunction(() => window.__game.world.multiplayer.snapshot.players.length === 4 && window.__game.world.multiplayer.snapshot.players.every(p=>p.ready));
     assert.equal(await pages[1].locator('#mpPlayers img').count(), 0, 'names are text, not HTML');
     for (const [index,page] of pages.entries()) await page.screenshot({path:path.join(out,`lobby-${index}.png`)});
+    for (const page of pages) await page.evaluate(() => {
+      const {app, world} = window.__game;
+      window.__parity = {go:false, speed:null, progress:null};
+      for (const [method, key] of [['setSpeedHud','speed'],['setProgressHud','progress']]) {
+        const original = app[method];
+        app[method] = function(...args) {
+          window.__parity[key] = args;
+          return original.apply(this, args);
+        };
+      }
+      world.scene.onAfterRenderObservable.add(() => {
+        if (app.countdownNumber.textContent === 'VAI!' && app.countdownOverlay.classList.contains('show')) window.__parity.go = true;
+      });
+    });
     await host.locator('#mpStart').click();
     await Promise.all(pages.map(page => page.waitForFunction(() => window.__game.world.multiplayer.snapshot?.phase === 'racing')));
     await host.evaluate(() => {
@@ -98,6 +112,9 @@ fs.mkdirSync(out, { recursive: true });
       });
     });
     await host.waitForTimeout(900);
+    for (const page of pages) {
+      await page.waitForFunction(() => window.__parity.go && !window.__game.app.countdownOverlay.classList.contains('show'));
+    }
     await host.keyboard.up('ArrowUp');
     const response = await host.evaluate(() => window.__response);
     console.log('Input response (ms):', JSON.stringify(response));
@@ -122,18 +139,39 @@ fs.mkdirSync(out, { recursive: true });
     };
     finish(hostId);
     await host.waitForFunction(() => window.__game.world.player.finished);
+    const finishedRacer = room.sim.world.racers.find(r => r.id === hostId);
+    const finishTime = finishedRacer.finishTime;
+    const finishYaw = finishedRacer.mesh.rotation.y;
+    await host.evaluate(() => {
+      const {app} = window.__game;
+      app.keys.right = true;
+      app.keys.up = true;
+      window.dispatchEvent(new KeyboardEvent('keydown', {code:'Enter'}));
+    });
+    await host.waitForFunction(yaw => Math.abs(window.__game.world.player.netState.physics.rotation[1] - yaw) > 0.01, finishYaw);
+    assert(finishedRacer.speed < 30, 'finished racer coasts despite holding accelerator');
+    assert.equal(finishedRacer.finishTime, finishTime, 'steering must not change the result');
+    await host.evaluate(() => { window.__game.app.keys.right = false; window.__game.app.keys.up = false; });
     await pages[2].locator('#mpLeaveRace').click();
     await pages[3].locator('#mpLeaveRace').click();
     await host.waitForTimeout(5500);
     assert.equal(await host.evaluate(() => window.__game.world.raceOver), false);
     assert.equal(await pages[1].evaluate(() => window.__game.world.player.finished), false);
     assert.equal(await host.locator('#btnFinishRace').isVisible(), false, 'cannot estimate human finishes');
+    await host.waitForFunction(() => {
+      const {app,world} = window.__game;
+      const target = world.multiplayer.cameraTarget;
+      return !target.isPlayer && app.placeLabel.textContent === `Assistindo: ${target.name}` &&
+        window.__parity.speed[0] === target.speed && window.__parity.progress[0] === target.progress &&
+        window.__parity.progress[2] !== 'Chegou! Aguardando jogadores';
+    });
     finish(await pages[1].evaluate(() => window.__game.world.multiplayer.room.sessionId));
     await host.waitForFunction(() => window.__game.world.raceOver);
     await host.waitForTimeout(600);
     await host.screenshot({path:path.join(out,'results.png')});
-    await host.locator('#mpLeaveRace').click();
-    await pages[1].locator('#mpLeaveRace').click();
+    await host.keyboard.press('Enter');
+    await pages[1].keyboard.press('Space');
+    for (const page of pages.slice(0,2)) await page.waitForFunction(() => !window.__game.world.multiplayer.racing && window.__game.world.inMenu);
     for (const [index,page] of pages.entries()) assert.deepEqual(await profile(page), before[index], 'multiplayer must not mutate solo progress');
     // Return to the previously selected Oval and use the existing solo start.
     await pages[1].locator('#btnStartRace').click();
@@ -149,7 +187,7 @@ fs.mkdirSync(out, { recursive: true });
     await matchMaker.getLocalRoomById(lostCode).disconnect();
     await host.waitForFunction(() => !window.__game.world.multiplayer.room && document.getElementById('mpStatus').textContent.includes('Conexão encerrada'));
     assert.deepEqual(errors, []);
-    console.log('PASS: four browsers, mobile portrait/landscape, authoritative movement, finish order, DNF, unchanged economy, solo Oval return and transport loss.');
+    console.log('PASS: four browsers, GO display, post-finish steering, spectator HUD, Enter/Space return, mobile portrait/landscape, authoritative movement, finish order, DNF, unchanged economy, solo Oval return and transport loss.');
   } finally {
     await browser.close();
     await new Promise(resolve => web.close(resolve));

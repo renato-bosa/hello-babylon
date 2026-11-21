@@ -28,6 +28,7 @@ export function initializeMultiplayer(app, world) {
   let savedTrack = null;
   let prepared = false;
   let lastCountdown = "";
+  let goDisplayUntil = 0;
   let busy = false;
   let listTimer;
   let listAbort;
@@ -328,6 +329,7 @@ export function initializeMultiplayer(app, world) {
     mp.racing = true;
     document.body.classList.add("mp-racing");
     lastCountdown = "";
+    goDisplayUntil = 0;
     closeDialog();
     GameAudio.unlock();
     world.resetPostRaceView();
@@ -398,6 +400,9 @@ export function initializeMultiplayer(app, world) {
   mp.update = function (dt) {
     const snapshot = mp.snapshot;
     if (!snapshot || !mp.room) return;
+    // Consume during the race too, so an old accelerator tap cannot close results.
+    const confirm = app.consumeVirtualConfirm();
+    if (world.raceOver && confirm) { cleanup(); return; }
     const silentFor = performance.now() - mp.lastReceive;
     if (silentFor > 15000) {
       cleanup();
@@ -406,14 +411,16 @@ export function initializeMultiplayer(app, world) {
     }
     const countdown = snapshot.phase === "countdown"
       ? String(Math.max(1, Math.ceil((snapshot.startAt - snapshot.serverTime - silentFor) / 1000))) : "";
-    app.countdownOverlay.classList.toggle("show", !!countdown);
     if (countdown !== lastCountdown) {
-      app.countdownNumber.textContent = countdown;
+      if (!countdown && snapshot.phase === "racing") goDisplayUntil = performance.now() + 700;
       GameAudio.playCountdownBeep(!countdown);
       lastCountdown = countdown;
     }
+    const showGo = snapshot.phase === "racing" && performance.now() < goDisplayUntil;
+    app.countdownNumber.textContent = countdown || (showGo ? "VAI!" : "");
+    app.countdownOverlay.classList.toggle("show", !!countdown || showGo);
     const input = document.hidden ? {} : app.mergeDriveInput(app.keys);
-    const commands = mp.prediction.advance(dt, input, performance.now(), snapshot.phase === "racing" && silentFor < 500 && !document.hidden && !world.player.finished);
+    const commands = mp.prediction.advance(dt, input, performance.now(), snapshot.phase === "racing" && silentFor < 500 && !document.hidden && !world.player.dnf);
     if (commands.length) mp.room.send("input", commands.map(({ sentAt, ...command }) => command));
     for (const racer of world.racers) {
       if (racer.isPlayer) mp.prediction.render(racer.mesh, dt);
@@ -446,13 +453,22 @@ export function initializeMultiplayer(app, world) {
       r.finished && world.player.finished && r.finishTime < world.player.finishTime ||
       !r.finished && !world.player.finished && r.progress > world.player.progress
     )).length;
-    app.placeLabel.textContent = silentFor > 2000 ? "Aguardando conexão…" : `Posição: ${place}º / ${world.racers.length}`;
-    const shownSpeed = mp.prediction.racer.speed;
+    const hudRacer = mp.cameraTarget;
+    app.placeLabel.textContent = silentFor > 2000 ? "Aguardando conexão…" : !hudRacer.isPlayer
+      ? `Assistindo: ${hudRacer.name}` : `Posição: ${place}º / ${world.racers.length}`;
+    const shownSpeed = hudRacer.isPlayer ? mp.prediction.racer.speed : hudRacer.speed;
     app.setSpeedHud(shownSpeed, app.PHYSICS.maxSpeed);
-    app.setProgressHud(world.player.progress || 0, `${Math.round((world.player.progress || 0) * 100)}%`,
-      world.player.finished ? "Chegou! Aguardando jogadores" : world.track.totalLaps > 1
-        ? `Volta ${Math.min(world.track.totalLaps, world.player.lapsCompleted + 1)}/${world.track.totalLaps}` : "Progresso");
+    app.setProgressHud(hudRacer.progress || 0, `${Math.round((hudRacer.progress || 0) * 100)}%`,
+      hudRacer.finished ? "Chegou! Aguardando jogadores" : world.track.totalLaps > 1
+        ? `Volta ${Math.min(world.track.totalLaps, hudRacer.lapsCompleted + 1)}/${world.track.totalLaps}` : "Progresso");
   };
+
+  window.addEventListener("keydown", event => {
+    if (!mp.racing || !world.raceOver || event.repeat ||
+        !["Enter", "NumpadEnter", "Space"].includes(event.code)) return;
+    event.preventDefault();
+    cleanup();
+  });
 
   el("btnMultiplayer").addEventListener("click", () => open());
   el("mpClose").addEventListener("click", cleanup);
